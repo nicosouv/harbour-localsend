@@ -15,6 +15,9 @@ BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Quick)
 BuildRequires:  pkgconfig(Qt5Network)
+# Qt cannot generate an X.509 certificate, and each device is its own
+# authority, so the TLS identity is built against OpenSSL directly.
+BuildRequires:  pkgconfig(openssl)
 BuildRequires:  desktop-file-utils
 
 %description
@@ -29,6 +32,7 @@ Features:
 - Finds nearby devices over multicast, with a manual sweep for networks
   that block it
 - Send anything: photos, documents, archives, several files at once
+- Encrypted by default, with peers authenticated by certificate pinning
 - Incoming transfers are shown before anything is written to disk
 - Optional PIN, optional quick save, per-sender folders
 - Native Sailfish interface with Silica components

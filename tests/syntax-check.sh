@@ -7,7 +7,7 @@
 # This is a gate, not a build: no linking, and the objects are thrown away.
 set -u
 
-CFLAGS=$(pkg-config --cflags Qt5Core Qt5Gui Qt5Qml Qt5Quick Qt5Network)
+CFLAGS=$(pkg-config --cflags Qt5Core Qt5Gui Qt5Qml Qt5Quick Qt5Network openssl)
 
 status=0
 checked=0

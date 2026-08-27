@@ -5,6 +5,12 @@ CONFIG += c++11
 
 QT += network
 
+# Qt cannot generate an X.509 certificate, and every device on a LocalSend
+# network is its own certificate authority, so the TLS identity is built
+# against OpenSSL directly. See src/certificate.cpp.
+CONFIG += link_pkgconfig
+PKGCONFIG += openssl
+
 # Version is passed by the spec file (%qmake5 VERSION=%{version})
 isEmpty(VERSION) {
     VERSION = 1.0.0
@@ -13,27 +19,35 @@ DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 
 SOURCES += src/harbour-localsend.cpp \
     src/appsettings.cpp \
+    src/certificate.cpp \
+    src/crypto.cpp \
     src/deviceinfo.cpp \
     src/devicemodel.cpp \
     src/discovery.cpp \
     src/historymodel.cpp \
     src/httpserver.cpp \
     src/protocol.cpp \
+    src/ratelimiter.cpp \
     src/receiveservice.cpp \
     src/selectionmodel.cpp \
     src/sendservice.cpp \
+    src/tlsclient.cpp \
     src/transfermodel.cpp
 
 HEADERS += src/appsettings.h \
+    src/certificate.h \
+    src/crypto.h \
     src/deviceinfo.h \
     src/devicemodel.h \
     src/discovery.h \
     src/historymodel.h \
     src/httpserver.h \
     src/protocol.h \
+    src/ratelimiter.h \
     src/receiveservice.h \
     src/selectionmodel.h \
     src/sendservice.h \
+    src/tlsclient.h \
     src/transfermodel.h
 
 DISTFILES += qml/harbour-localsend.qml \

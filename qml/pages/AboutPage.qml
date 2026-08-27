@@ -42,6 +42,11 @@ Page {
                 value: appSettings.deviceModel
             }
             DetailItem {
+                label: qsTr("Transport")
+                value: appSettings.encrypted ? qsTr("HTTPS (encrypted)")
+                                             : qsTr("HTTP (not encrypted)")
+            }
+            DetailItem {
                 label: qsTr("Fingerprint")
                 value: appSettings.fingerprint.substring(0, 16)
             }
@@ -54,10 +59,12 @@ Page {
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryColor
-                // Worth stating plainly rather than burying: somebody sending
-                // something sensitive deserves to know what the wire looks
-                // like, and "LocalSend" elsewhere defaults to encrypted.
-                text: qsTr("Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.").arg(appSettings.port)
+                // The honest description of what the encryption does and does
+                // not buy. Somebody sending something sensitive deserves the
+                // real shape of it rather than the word "encrypted".
+                text: appSettings.encrypted
+                    ? qsTr("Transfers are encrypted between the two devices with a certificate this phone generated for itself. There is no certificate authority on a local network, so what identifies a device is the fingerprint above: it travels in every announcement, and a device presenting anything else is refused before a single byte is sent.")
+                    : qsTr("Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.").arg(appSettings.port)
             }
 
             Label {

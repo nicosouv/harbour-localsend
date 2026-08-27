@@ -1,10 +1,10 @@
 #include "protocol.h"
 
 #include <QByteArray>
-#include <QCryptographicHash>
-#include <QDateTime>
 #include <QStringList>
 #include <QUuid>
+
+#include "crypto.h"
 
 namespace Protocol {
 
@@ -48,9 +48,12 @@ QString generateAlias()
     const int adjectiveCount = int(sizeof(adjectives) / sizeof(adjectives[0]));
     const int nounCount = int(sizeof(nouns) / sizeof(nouns[0]));
 
-    // QUuid seeds this better than qrand(), which we would have to seed by hand
-    // and which is shared with everything else in the process.
-    const QByteArray entropy = QUuid::createUuid().toRfc4122();
+    // Not a secret, so a fallback is acceptable here in a way it is not for
+    // tokens: the worst case is two devices picking the same friendly name.
+    QByteArray entropy = Crypto::randomBytes(2);
+    if (entropy.size() < 2)
+        entropy = QUuid::createUuid().toRfc4122();
+
     const int adjective = uchar(entropy.at(0)) % adjectiveCount;
     const int noun = uchar(entropy.at(1)) % nounCount;
 
@@ -61,17 +64,19 @@ QString generateAlias()
 
 QString generateFingerprint()
 {
-    QByteArray entropy;
-    entropy += QUuid::createUuid().toRfc4122();
-    entropy += QUuid::createUuid().toRfc4122();
-    entropy += QByteArray::number(QDateTime::currentMSecsSinceEpoch());
-    return QString::fromLatin1(
-        QCryptographicHash::hash(entropy, QCryptographicHash::Sha256).toHex());
+    // Only used in plain-HTTP mode. Under HTTPS the fingerprint is the
+    // certificate hash and comes from Certificate, because the protocol
+    // defines it that way and a peer verifies it against what we present.
+    // Same width either way, so nothing downstream can tell the difference.
+    return Crypto::randomHex(32);
 }
 
 QString generateToken()
 {
-    return QString::fromLatin1(QUuid::createUuid().toRfc4122().toHex());
+    // 192 bits from the CSPRNG. A token is a bearer capability - whoever
+    // holds it may write a file to this device for the length of a session -
+    // so it must not come from anything a peer could predict.
+    return Crypto::randomHex(24);
 }
 
 } // namespace Protocol

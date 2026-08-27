@@ -178,10 +178,13 @@ jobs:
 
           ## Notes
 
-          This is an unofficial client. It speaks the LocalSend v2 protocol over
-          plain HTTP, so it interoperates with the official apps, but the
-          encrypted (HTTPS) transport is not implemented yet - keep it to
-          networks you trust.
+          This is an unofficial client speaking the LocalSend v2 protocol, so it
+          interoperates with the official apps on Android, iOS, Windows, macOS
+          and Linux.
+
+          Transfers are encrypted by default. Files never leave your local
+          network: one device connects straight to the other's address, with no
+          server or account in between.
           EOF
           cat release_notes.md
 

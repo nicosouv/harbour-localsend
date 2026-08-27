@@ -11,8 +11,10 @@
 #include <QUrl>
 
 #include "appsettings.h"
+#include "crypto.h"
 #include "devicemodel.h"
 #include "protocol.h"
+#include "tlsclient.h"
 
 namespace {
 
@@ -301,11 +303,15 @@ void Discovery::postRegister(const DeviceInfo &peer)
     QNetworkRequest request(QUrl(peer.apiBase() + QLatin1String(Protocol::PathRegister)));
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
+    TlsClient::configure(request);
 
     const QByteArray body = QJsonDocument(
         m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
 
     QNetworkReply *reply = m_network->post(request, body);
+    // We already know who this is meant to be - it just announced itself - so
+    // the certificate has to match what it announced.
+    TlsClient::pin(reply, peer.fingerprint);
     connect(reply, &QNetworkReply::finished, this, &Discovery::onRegisterFinished);
     QTimer::singleShot(RegisterTimeoutMs, reply, SLOT(abort()));
 }
@@ -329,8 +335,11 @@ void Discovery::onRegisterFinished()
         return;
 
     // The response omits the transport details, so they come from the URL we
-    // reached rather than from the body.
+    // reached rather than from the body - including the scheme, or a device
+    // we just spoke to over TLS would be recorded as a plaintext one and
+    // every later request to it would fail.
     peer.address = reply->url().host();
+    peer.protocol = reply->url().scheme();
     if (peer.port <= 0)
         peer.port = reply->url().port(Protocol::DefaultPort);
     m_devices->upsert(peer);
@@ -369,11 +378,18 @@ void Discovery::scanSubnet()
     // A /24 around each of our own addresses. Wider prefixes exist, but a /16
     // sweep is 65k requests, which is not a feature: it is a denial of
     // service against the person's own router.
+    //
+    // Each address is tried on both transports. There is no way to tell from
+    // outside whether a device is running encrypted or not, and the whole
+    // point of this sweep is the network where nothing announced itself, so
+    // there is nothing to read the answer off.
     for (int p = 0; p < prefixes.count(); ++p) {
         for (int host = 1; host <= 254; ++host) {
             const QString address = prefixes.at(p) + QString::number(host);
-            if (!mine.contains(address))
-                m_scanQueue.append(address);
+            if (mine.contains(address))
+                continue;
+            m_scanQueue.append(QStringLiteral("https://") + address);
+            m_scanQueue.append(QStringLiteral("http://") + address);
         }
     }
 
@@ -392,23 +408,33 @@ void Discovery::scanSubnet()
 void Discovery::pumpScanQueue()
 {
     while (m_scanning && m_scanInFlight < ScanWindow && !m_scanQueue.isEmpty()) {
-        const QString address = m_scanQueue.takeFirst();
-
-        QUrl url;
-        url.setScheme(QStringLiteral("http"));
-        url.setHost(address);
+        QUrl url(m_scanQueue.takeFirst());
         url.setPort(m_settings->port());
         url.setPath(QLatin1String(Protocol::ApiPrefix)
                     + QLatin1String(Protocol::PathRegister));
 
+        const bool secure = url.scheme() == QLatin1String("https");
+
         QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader,
                           QStringLiteral("application/json"));
+        if (secure)
+            TlsClient::configure(request);
 
         const QByteArray body = QJsonDocument(
             m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
 
         QNetworkReply *reply = m_network->post(request, body);
+
+        if (secure) {
+            // We have never met whatever is at this address, so there is no
+            // fingerprint to pin against yet. The certificate is accepted to
+            // get the introduction, and onScanReplyFinished then refuses to
+            // believe the device's claimed fingerprint unless it is the hash
+            // of the certificate we were just shown.
+            TlsClient::acceptUnknown(reply);
+        }
+
         connect(reply, &QNetworkReply::finished, this, &Discovery::onScanReplyFinished);
         QTimer::singleShot(ScanTimeoutMs, reply, SLOT(abort()));
         ++m_scanInFlight;
@@ -432,8 +458,20 @@ void Discovery::onScanReplyFinished()
         const QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
         if (document.isObject()) {
             DeviceInfo peer = DeviceInfo::fromPayload(document.object());
-            if (peer.isValid() && peer.fingerprint != m_settings->fingerprint()) {
+            const QString observed = TlsClient::observedFingerprint(reply);
+
+            // Over TLS the device's claimed fingerprint has to be the hash of
+            // the certificate it just presented. Recording it otherwise would
+            // put an identity in the device list that nothing can ever be
+            // verified against, and every later transfer to it would be
+            // pinned to a fingerprint its certificate does not match.
+            const bool consistent =
+                observed.isEmpty() || Crypto::equals(observed, peer.fingerprint);
+
+            if (peer.isValid() && consistent
+                    && peer.fingerprint != m_settings->fingerprint()) {
                 peer.address = reply->url().host();
+                peer.protocol = reply->url().scheme();
                 if (peer.port <= 0)
                     peer.port = reply->url().port(Protocol::DefaultPort);
                 m_devices->upsert(peer);

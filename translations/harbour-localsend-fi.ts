@@ -16,12 +16,24 @@
         <translation>Laitteet löytävät toisensa multicastilla. Monet verkot estävät sen — vierasverkko lähes aina. Silloin päänäkymän Etsi verkosta löytää ne hitaammalla tavalla.</translation>
     </message>
     <message>
+        <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
+        <translation>Salaus on pois päältä: siirrot kulkevat salaamattomana HTTP:nä portissa %1 ja ovat kenen tahansa verkkoa seuraavan luettavissa. Kotiverkossa tai omassa jakoyhteydessä se ei ole kukaan; kahvilan tai toimiston wifissä ehkä on.</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Sormenjälki</translation>
     </message>
     <message>
         <source>Good to know</source>
         <translation>Hyvä tietää</translation>
+    </message>
+    <message>
+        <source>HTTP (not encrypted)</source>
+        <translation>HTTP (salaamaton)</translation>
+    </message>
+    <message>
+        <source>HTTPS (encrypted)</source>
+        <translation>HTTPS (salattu)</translation>
     </message>
     <message>
         <source>Links</source>
@@ -52,8 +64,12 @@
         <translation>Tämä laite</translation>
     </message>
     <message>
-        <source>Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
-        <translation>Siirrot käyttävät salaamatonta HTTP:tä portissa %1. Työpöytä- ja mobiilisovellusten salattua siirtotapaa ei ole vielä toteutettu tässä, joten oleta siirron näkyvän kenelle tahansa, joka voi seurata verkkoa. Kotona tai omassa jakoyhteydessä se ei ole kukaan; kahvilan tai toimiston wifissä ehkä on.</translation>
+        <source>Transfers are encrypted between the two devices with a certificate this phone generated for itself. There is no certificate authority on a local network, so what identifies a device is the fingerprint above: it travels in every announcement, and a device presenting anything else is refused before a single byte is sent.</source>
+        <translation>Siirrot salataan laitteiden välillä varmenteella, jonka tämä puhelin loi itselleen. Paikallisverkossa ei ole varmenneviranomaista: laitteen tunnistaa yllä oleva sormenjälki. Se kulkee jokaisessa ilmoituksessa, ja laite joka esittää jotain muuta hylätään ennen yhtäkään tavua.</translation>
+    </message>
+    <message>
+        <source>Transport</source>
+        <translation>Siirtotapa</translation>
     </message>
     <message>
         <source>Version</source>
@@ -197,6 +213,10 @@
         <translation>Laitteen nimi</translation>
     </message>
     <message>
+        <source>Encrypted</source>
+        <translation>Salattu</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Sormenjälki</translation>
     </message>
@@ -227,6 +247,10 @@
     <message>
         <source>Nobody yet</source>
         <translation>Ei vielä ketään</translation>
+    </message>
+    <message>
+        <source>Not encrypted</source>
+        <translation>Salaamaton</translation>
     </message>
     <message>
         <source>Not listening</source>
@@ -449,8 +473,20 @@
         <translation>Salli saapuvat tiedostot</translation>
     </message>
     <message>
+        <source>Change the PIN</source>
+        <translation>Vaihda PIN-koodi</translation>
+    </message>
+    <message>
         <source>Device name</source>
         <translation>Laitteen nimi</translation>
+    </message>
+    <message>
+        <source>Encrypt transfers</source>
+        <translation>Salaa siirrot</translation>
+    </message>
+    <message>
+        <source>Files are encrypted between the two devices. Turning this off makes every transfer readable by anyone on the same network.</source>
+        <translation>Tiedostot salataan laitteiden välillä. Pois päältä jokainen siirto on kenen tahansa samassa verkossa olevan luettavissa.</translation>
     </message>
     <message>
         <source>Files are saved as soon as they arrive. Convenient at home, unwise on a network you share.</source>
@@ -477,8 +513,16 @@
         <translation>Kuunneltava portti</translation>
     </message>
     <message>
+        <source>Not set</source>
+        <translation>Ei asetettu</translation>
+    </message>
+    <message>
         <source>Notify me</source>
         <translation>Ilmoita minulle</translation>
+    </message>
+    <message>
+        <source>Only a salted hash of the code is stored, so it can be changed but never shown again.</source>
+        <translation>Koodista tallennetaan vain suolattu tiiviste: sen voi vaihtaa muttei nähdä uudelleen.</translation>
     </message>
     <message>
         <source>Other LocalSend devices look on 53317 by default. A different port still works, but only if the other side is told about it.</source>
@@ -505,6 +549,10 @@
         <translation>Kirjaa mitä lähetettiin ja vastaanotettiin ja minne se tallennettiin.</translation>
     </message>
     <message>
+        <source>Remove the PIN</source>
+        <translation>Poista PIN-koodi</translation>
+    </message>
+    <message>
         <source>Require a PIN</source>
         <translation>Vaadi PIN-koodi</translation>
     </message>
@@ -517,8 +565,20 @@
         <translation>Tallennus</translation>
     </message>
     <message>
+        <source>Security</source>
+        <translation>Turvallisuus</translation>
+    </message>
+    <message>
         <source>Senders must enter this code before you are even asked.</source>
         <translation>Lähettäjän on annettava tämä koodi ennen kuin sinulta edes kysytään.</translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation>Asetettu</translation>
+    </message>
+    <message>
+        <source>Set a PIN</source>
+        <translation>Aseta PIN-koodi</translation>
     </message>
     <message>
         <source>Settings</source>
@@ -527,6 +587,10 @@
     <message>
         <source>Stops the device suspending mid-transfer. Uses more battery.</source>
         <translation>Estää laitetta siirtymästä lepotilaan kesken siirron. Kuluttaa enemmän akkua.</translation>
+    </message>
+    <message>
+        <source>Stored as a salted hash, so it cannot be shown again — only replaced.</source>
+        <translation>Tallennetaan suolattuna tiivisteenä: sitä ei voi näyttää uudelleen, vain korvata.</translation>
     </message>
     <message>
         <source>Suggest another name</source>
@@ -539,6 +603,14 @@
     <message>
         <source>This device</source>
         <translation>Tämä laite</translation>
+    </message>
+    <message>
+        <source>This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.</source>
+        <translation>Tämä laite tunnistetaan varmenteensa sormenjäljestä, joten tämän asetuksen muuttaminen saa sen näyttämään muille uudelta laitteelta.</translation>
+    </message>
+    <message>
+        <source>Unavailable on this device: %1</source>
+        <translation>Ei käytettävissä tällä laitteella: %1</translation>
     </message>
     <message>
         <source>What other devices call you.</source>

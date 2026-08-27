@@ -167,6 +167,20 @@ Page {
                                 : qsTr("Ready on port %1").arg(receiver.port)
                         }
                     }
+
+                    // Stated plainly rather than left to be assumed. Whether
+                    // what you are about to send is readable by the network
+                    // is not a detail to bury in a settings page.
+                    Label {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        visible: appSettings.receiveEnabled && receiver.listening
+                        color: appSettings.encrypted ? Theme.highlightColor
+                                                     : Theme.errorColor
+                        text: appSettings.encrypted ? qsTr("Encrypted")
+                                                    : qsTr("Not encrypted")
+                    }
                 }
             }
 

@@ -14,6 +14,7 @@
 #include <QUrlQuery>
 
 #include "appsettings.h"
+#include "crypto.h"
 #include "discovery.h"
 #include "historymodel.h"
 #include "httpserver.h"
@@ -29,6 +30,10 @@ const char *PartSuffix = ".part";
 // A session with no traffic at all for this long is over, whatever the sender
 // thinks. Restarted on every block of every file.
 const int SessionIdleMs = 60 * 1000;
+
+// Generous next to any real transfer, and far below what it would take to
+// exhaust memory through the token table.
+const int MaxFilesPerSession = 2000;
 
 } // namespace
 
@@ -80,6 +85,16 @@ bool ReceiveService::startListening()
 {
     if (m_server->isListening())
         return true;
+
+    // The transport has to be settled before the socket is bound, and it has
+    // to agree with what the announcement says: a peer told "https" that then
+    // gets a plaintext socket simply fails.
+    if (m_settings->isEncrypted()) {
+        m_server->setIdentity(m_settings->identity().certificate(),
+                              m_settings->identity().privateKey());
+    } else {
+        m_server->setIdentity(QSslCertificate(), QSslKey());
+    }
 
     if (!m_server->start(quint16(m_settings->port()))) {
         m_listenError = m_server->lastError();
@@ -176,10 +191,24 @@ void ReceiveService::handlePrepareUpload(HttpConnection *connection)
         return;
     }
 
+    // The PIN is short enough to be searched exhaustively over the network in
+    // minutes, so the hash's work factor is not the defence - this is. An
+    // address that keeps guessing is answered with 429 and told when to come
+    // back, long before it has covered a meaningful part of the space.
+    const QString peerAddress = connection->peerAddress();
+    if (!m_pinAttempts.allow(peerAddress)) {
+        connection->addHeader(
+            "Retry-After", QByteArray::number(m_pinAttempts.retryAfter(peerAddress)));
+        connection->respond(429);
+        return;
+    }
+
     if (!m_settings->checkPin(connection->query(QStringLiteral("pin")))) {
+        m_pinAttempts.recordFailure(peerAddress);
         connection->respond(401);
         return;
     }
+    m_pinAttempts.recordSuccess(peerAddress);
 
     const QJsonObject body = connection->jsonBody();
     const QJsonObject info = body.value(QStringLiteral("info")).toObject();
@@ -192,6 +221,13 @@ void ReceiveService::handlePrepareUpload(HttpConnection *connection)
     if (files.isEmpty()) {
         // Nothing to transfer: the spec's "finished, no action needed".
         connection->respond(204);
+        return;
+    }
+    if (files.count() > MaxFilesPerSession) {
+        // Every declared file becomes a model row and a token held for the
+        // session. A peer is free to claim a million of them; we are not
+        // obliged to allocate for it.
+        connection->respond(400);
         return;
     }
 
@@ -347,7 +383,7 @@ void ReceiveService::handleUploadHeaders(HttpConnection *connection)
     }
     // The token is the capability; the address check stops another host on the
     // network from spending it if it ever leaks.
-    if (m_tokens.value(fileId) != token
+    if (!Crypto::equals(m_tokens.value(fileId), token)
             || connection->peerAddress() != m_sessionAddress) {
         connection->respond(403);
         return;

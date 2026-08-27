@@ -4,8 +4,12 @@
 #include <QByteArray>
 #include <QHash>
 #include <QHostAddress>
+#include <QList>
+#include <QPair>
 #include <QJsonObject>
 #include <QObject>
+#include <QSslCertificate>
+#include <QSslKey>
 #include <QString>
 #include <QTcpServer>
 
@@ -46,6 +50,11 @@ public:
     // headersReady() handler: by requestReady() the body is already gone.
     // Ownership of `sink` stays with the caller.
     void streamBodyTo(QIODevice *sink);
+
+    // Adds a header to whatever response comes next. Used for the handful of
+    // cases where the status code alone is not enough - Retry-After on a 429
+    // being the one that matters, since a client without it can only guess.
+    void addHeader(const QByteArray &name, const QByteArray &value);
 
     void respond(int status, const QByteArray &payload = QByteArray(),
                  const QByteArray &contentType = QByteArray("application/json"));
@@ -96,6 +105,7 @@ private:
     QString m_path;
     QHash<QString, QString> m_query;
     QHash<QByteArray, QByteArray> m_headers;
+    QList<QPair<QByteArray, QByteArray> > m_extraHeaders;
 
     QByteArray m_body;
     QIODevice *m_sink;
@@ -122,6 +132,11 @@ class HttpServer : public QTcpServer
 public:
     explicit HttpServer(QObject *parent = 0);
 
+    // Serves TLS with this key pair. Must be set before start(); passing a
+    // null certificate puts the server back into plain HTTP.
+    void setIdentity(const QSslCertificate &certificate, const QSslKey &key);
+    bool isSecure() const;
+
     // Binds every interface on `port`. Returns false and sets lastError() when
     // the port is taken, which on this platform usually means a second copy of
     // the app is already listening.
@@ -132,6 +147,8 @@ public:
     quint16 boundPort() const;
     QString lastError() const;
 
+    int liveConnections() const;
+
 signals:
     void connectionReady(HttpConnection *connection);
 
@@ -139,7 +156,13 @@ protected:
     void incomingConnection(qintptr socketDescriptor);
 
 private:
+    void adopt(QTcpSocket *socket);
+    void track(QTcpSocket *socket);
+
     QString m_lastError;
+    QSslCertificate m_certificate;
+    QSslKey m_key;
+    int m_liveConnections;
 };
 
 #endif // HTTPSERVER_H

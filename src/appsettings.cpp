@@ -7,6 +7,7 @@
 #include <QSysInfo>
 #include <QUrl>
 
+#include "crypto.h"
 #include "protocol.h"
 
 #ifndef APP_VERSION
@@ -23,7 +24,22 @@ const char *KeyFolderPerSender = "storage/folderPerSender";
 const char *KeyReceiveEnabled = "network/receiveEnabled";
 const char *KeyQuickSave = "transfer/quickSave";
 const char *KeyPinEnabled = "security/pinEnabled";
-const char *KeyPin = "security/pin";
+const char *KeyPinSalt = "security/pinSalt";
+const char *KeyPinHash = "security/pinHash";
+const char *KeySecureTransport = "security/encrypt";
+
+// Written by versions before the PIN was hashed. Read once, migrated, and
+// deleted; never written again.
+const char *KeyLegacyPin = "security/pin";
+
+// A PIN is four to eight digits, so the search space is small enough that the
+// work factor is most of what stands between a stolen settings file and the
+// code. Roughly a tenth of a second on the slowest device we target: fast
+// enough to sit on the request path, slow enough that ten thousand of them is
+// not a coffee break.
+const int PinIterations = 120000;
+const int PinSaltBytes = 16;
+const int PinHashBytes = 32;
 const char *KeyNotifications = "ui/notifications";
 const char *KeyKeepAwake = "transfer/keepAwake";
 const char *KeyHistoryEnabled = "ui/history";
@@ -44,20 +60,55 @@ AppSettings::AppSettings(QObject *parent)
     if (!m_settings.contains(QLatin1String(KeyAlias)))
         m_settings.setValue(QLatin1String(KeyAlias), Protocol::generateAlias());
 
-    m_fingerprint = m_settings.value(QLatin1String(KeyFingerprint)).toString();
-    if (m_fingerprint.isEmpty()) {
-        m_fingerprint = Protocol::generateFingerprint();
-        m_settings.setValue(QLatin1String(KeyFingerprint), m_fingerprint);
+    m_randomFingerprint = m_settings.value(QLatin1String(KeyFingerprint)).toString();
+    if (m_randomFingerprint.isEmpty()) {
+        m_randomFingerprint = Protocol::generateFingerprint();
+        m_settings.setValue(QLatin1String(KeyFingerprint), m_randomFingerprint);
     }
 
     if (!m_settings.contains(QLatin1String(KeyDestination)))
         m_settings.setValue(QLatin1String(KeyDestination), defaultDestination());
 
+    // An upgrade from a version that kept the PIN in the clear. Re-hash it
+    // and drop the plaintext, rather than leaving it sitting there for the
+    // life of the install.
+    const QString legacyPin = m_settings.value(QLatin1String(KeyLegacyPin)).toString();
+    if (!legacyPin.isEmpty()) {
+        setPin(legacyPin);
+        m_settings.remove(QLatin1String(KeyLegacyPin));
+    }
+
     m_settings.sync();
 
-    // The PIN lives in here, so keep the file readable by its owner only.
+    // The PIN hash and salt live in here, so keep the file readable by its
+    // owner only. The sandbox already stops other applications reaching it;
+    // this is what is left for backups and anything with the filesystem open.
     QFile::setPermissions(m_settings.fileName(),
                           QFile::ReadOwner | QFile::WriteOwner);
+
+    if (secureTransport())
+        ensureIdentity();
+}
+
+void AppSettings::ensureIdentity()
+{
+    if (m_identity.isValid()) {
+        m_transportError.clear();
+        return;
+    }
+
+    const QString directory =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    if (m_identity.ensure(directory)) {
+        m_transportError.clear();
+        return;
+    }
+
+    // Falling back to plain HTTP is better than refusing to run, but it is
+    // not something to do quietly: the settings page says so, and so does the
+    // main page.
+    m_transportError = m_identity.lastError();
 }
 
 QString AppSettings::detectDeviceModel() const
@@ -112,7 +163,10 @@ QString AppSettings::deviceModel() const
 
 QString AppSettings::fingerprint() const
 {
-    return m_fingerprint;
+    // Under HTTPS the protocol defines the fingerprint as the certificate's
+    // hash, and a peer checks what we present against it. Announcing anything
+    // else would make every encrypted transfer fail verification.
+    return isEncrypted() ? m_identity.fingerprint() : m_randomFingerprint;
 }
 
 int AppSettings::port() const
@@ -205,17 +259,37 @@ void AppSettings::setPinEnabled(bool enabled)
     emit pinEnabledChanged();
 }
 
-QString AppSettings::pin() const
+bool AppSettings::pinIsSet() const
 {
-    return m_settings.value(QLatin1String(KeyPin)).toString();
+    return !m_settings.value(QLatin1String(KeyPinHash)).toString().isEmpty();
 }
 
 void AppSettings::setPin(const QString &pin)
 {
-    if (pin == this->pin())
+    if (pin.isEmpty()) {
+        m_settings.remove(QLatin1String(KeyPinSalt));
+        m_settings.remove(QLatin1String(KeyPinHash));
+        m_settings.remove(QLatin1String(KeyLegacyPin));
+        m_settings.sync();
+        emit pinChanged();
         return;
-    m_settings.setValue(QLatin1String(KeyPin), pin);
+    }
+
+    const QByteArray salt = Crypto::randomBytes(PinSaltBytes);
+    if (salt.isEmpty())
+        return;   // no random source; storing an unsalted hash would be worse
+
+    const QByteArray hash = Crypto::deriveKey(pin, salt, PinIterations, PinHashBytes);
+    if (hash.isEmpty())
+        return;
+
+    m_settings.setValue(QLatin1String(KeyPinSalt), QString::fromLatin1(salt.toHex()));
+    m_settings.setValue(QLatin1String(KeyPinHash), QString::fromLatin1(hash.toHex()));
+    m_settings.remove(QLatin1String(KeyLegacyPin));
     m_settings.sync();
+
+    QFile::setPermissions(m_settings.fileName(),
+                          QFile::ReadOwner | QFile::WriteOwner);
     emit pinChanged();
 }
 
@@ -223,10 +297,63 @@ bool AppSettings::checkPin(const QString &candidate) const
 {
     if (!pinEnabled())
         return true;
-    const QString expected = pin();
-    if (expected.isEmpty())
+
+    const QByteArray salt = QByteArray::fromHex(
+        m_settings.value(QLatin1String(KeyPinSalt)).toString().toLatin1());
+    const QByteArray expected = QByteArray::fromHex(
+        m_settings.value(QLatin1String(KeyPinHash)).toString().toLatin1());
+
+    // The requirement is switched on but no code was ever set. Refusing
+    // everything would leave the device unreachable with no way for the
+    // sender to tell why, so treat it as no barrier; the settings page is
+    // what stops this state being reachable.
+    if (salt.isEmpty() || expected.isEmpty())
         return true;
-    return candidate == expected;
+
+    const QByteArray derived =
+            Crypto::deriveKey(candidate, salt, PinIterations, expected.size());
+    if (derived.isEmpty())
+        return false;
+
+    return Crypto::equals(derived, expected);
+}
+
+bool AppSettings::secureTransport() const
+{
+    return m_settings.value(QLatin1String(KeySecureTransport), true).toBool();
+}
+
+void AppSettings::setSecureTransport(bool enabled)
+{
+    if (enabled == secureTransport())
+        return;
+
+    m_settings.setValue(QLatin1String(KeySecureTransport), enabled);
+    m_settings.sync();
+
+    if (enabled)
+        ensureIdentity();
+
+    // The fingerprint we advertise is the certificate hash under HTTPS and a
+    // random value otherwise, so flipping this makes us a different device as
+    // far as every peer is concerned. That is correct - it is a different
+    // key - but it is why the setting is not something to toggle idly.
+    emit secureTransportChanged();
+}
+
+bool AppSettings::isEncrypted() const
+{
+    return secureTransport() && m_identity.isValid();
+}
+
+QString AppSettings::transportError() const
+{
+    return m_transportError;
+}
+
+const Certificate &AppSettings::identity() const
+{
+    return m_identity;
 }
 
 bool AppSettings::notificationsEnabled() const
@@ -302,9 +429,10 @@ DeviceInfo AppSettings::self() const
     device.version = QString::fromLatin1(Protocol::Version);
     device.deviceModel = m_deviceModel;
     device.deviceType = QStringLiteral("mobile");
-    device.fingerprint = m_fingerprint;
+    device.fingerprint = fingerprint();
     device.port = port();
-    device.protocol = QStringLiteral("http");
+    device.protocol = isEncrypted() ? QStringLiteral("https")
+                                    : QStringLiteral("http");
     device.download = false;
     return device;
 }

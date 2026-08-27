@@ -5,6 +5,7 @@
 #include <QSettings>
 #include <QString>
 
+#include "certificate.h"
 #include "deviceinfo.h"
 
 // Every persisted preference, plus the identity this device presents on the
@@ -26,7 +27,17 @@ class AppSettings : public QObject
     Q_PROPERTY(bool receiveEnabled READ receiveEnabled WRITE setReceiveEnabled NOTIFY receiveEnabledChanged)
     Q_PROPERTY(bool quickSave READ quickSave WRITE setQuickSave NOTIFY quickSaveChanged)
     Q_PROPERTY(bool pinEnabled READ pinEnabled WRITE setPinEnabled NOTIFY pinEnabledChanged)
-    Q_PROPERTY(QString pin READ pin WRITE setPin NOTIFY pinChanged)
+    // There is no way to read the PIN back, by design: only whether one has
+    // been set. It is stored as a salted hash, so nothing here could return
+    // it even if a page asked.
+    Q_PROPERTY(bool pinIsSet READ pinIsSet NOTIFY pinChanged)
+
+    // What the user asked for, and what we actually got. They differ when
+    // this device could not produce a TLS identity, which is worth surfacing
+    // rather than silently downgrading.
+    Q_PROPERTY(bool secureTransport READ secureTransport WRITE setSecureTransport NOTIFY secureTransportChanged)
+    Q_PROPERTY(bool encrypted READ isEncrypted NOTIFY secureTransportChanged)
+    Q_PROPERTY(QString transportError READ transportError NOTIFY secureTransportChanged)
 
     Q_PROPERTY(bool notificationsEnabled READ notificationsEnabled WRITE setNotificationsEnabled NOTIFY notificationsEnabledChanged)
     Q_PROPERTY(bool keepAwake READ keepAwake WRITE setKeepAwake NOTIFY keepAwakeChanged)
@@ -63,8 +74,19 @@ public:
     bool pinEnabled() const;
     void setPinEnabled(bool enabled);
 
-    QString pin() const;
-    void setPin(const QString &pin);
+    bool pinIsSet() const;
+    // Hashes and stores `pin`, or clears it when empty. Never keeps the
+    // plaintext, and removes any left behind by an older version. Invokable
+    // because there is no matching getter for QML to bind a property to.
+    Q_INVOKABLE void setPin(const QString &pin);
+
+    bool secureTransport() const;
+    void setSecureTransport(bool enabled);
+    bool isEncrypted() const;
+    QString transportError() const;
+
+    // The TLS identity, valid only while isEncrypted().
+    const Certificate &identity() const;
 
     bool notificationsEnabled() const;
     void setNotificationsEnabled(bool enabled);
@@ -106,6 +128,7 @@ signals:
     void quickSaveChanged();
     void pinEnabledChanged();
     void pinChanged();
+    void secureTransportChanged();
     void notificationsEnabledChanged();
     void keepAwakeChanged();
     void historyEnabledChanged();
@@ -115,9 +138,15 @@ private:
     QString detectDeviceModel() const;
     QString defaultDestination() const;
 
+    void ensureIdentity();
+
     QSettings m_settings;
     QString m_deviceModel;
-    QString m_fingerprint;
+    // Used only in plain-HTTP mode; under HTTPS the fingerprint has to be the
+    // certificate's hash or no peer could verify us.
+    QString m_randomFingerprint;
+    Certificate m_identity;
+    QString m_transportError;
 };
 
 #endif // APPSETTINGS_H

@@ -16,12 +16,24 @@
         <translation>I dispositivi si trovano tramite multicast. Molte reti lo bloccano, e il Wi-Fi per ospiti quasi sempre. In quel caso Scansiona la rete dalla schermata principale li trova per la via lenta.</translation>
     </message>
     <message>
+        <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
+        <translation>La cifratura è disattivata: i trasferimenti usano HTTP in chiaro sulla porta %1 e sono leggibili da chiunque possa osservare la rete. A casa o sul proprio hotspot non è nessuno; sul Wi-Fi di un bar o di un ufficio potrebbe esserlo.</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Impronta</translation>
     </message>
     <message>
         <source>Good to know</source>
         <translation>Da sapere</translation>
+    </message>
+    <message>
+        <source>HTTP (not encrypted)</source>
+        <translation>HTTP (non cifrato)</translation>
+    </message>
+    <message>
+        <source>HTTPS (encrypted)</source>
+        <translation>HTTPS (cifrato)</translation>
     </message>
     <message>
         <source>Links</source>
@@ -52,8 +64,12 @@
         <translation>Questo dispositivo</translation>
     </message>
     <message>
-        <source>Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
-        <translation>I trasferimenti usano HTTP in chiaro sulla porta %1. Il trasporto cifrato offerto dalle applicazioni desktop e mobili non è ancora implementato qui: considera un trasferimento visibile a chiunque possa osservare la rete. A casa o sul proprio hotspot non è nessuno; sul Wi-Fi di un bar o di un ufficio potrebbe esserlo.</translation>
+        <source>Transfers are encrypted between the two devices with a certificate this phone generated for itself. There is no certificate authority on a local network, so what identifies a device is the fingerprint above: it travels in every announcement, and a device presenting anything else is refused before a single byte is sent.</source>
+        <translation>I trasferimenti sono cifrati fra i due dispositivi con un certificato che questo telefono ha generato da sé. Su una rete locale non esiste alcuna autorità di certificazione: ciò che identifica un dispositivo è l'impronta qui sopra. Viaggia in ogni annuncio, e un dispositivo che ne presenta un'altra viene rifiutato prima di un solo byte.</translation>
+    </message>
+    <message>
+        <source>Transport</source>
+        <translation>Trasporto</translation>
     </message>
     <message>
         <source>Version</source>
@@ -197,6 +213,10 @@
         <translation>Nome del dispositivo</translation>
     </message>
     <message>
+        <source>Encrypted</source>
+        <translation>Cifrato</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Impronta</translation>
     </message>
@@ -227,6 +247,10 @@
     <message>
         <source>Nobody yet</source>
         <translation>Ancora nessuno</translation>
+    </message>
+    <message>
+        <source>Not encrypted</source>
+        <translation>Non cifrato</translation>
     </message>
     <message>
         <source>Not listening</source>
@@ -449,8 +473,20 @@
         <translation>Consenti i file in arrivo</translation>
     </message>
     <message>
+        <source>Change the PIN</source>
+        <translation>Cambia il PIN</translation>
+    </message>
+    <message>
         <source>Device name</source>
         <translation>Nome del dispositivo</translation>
+    </message>
+    <message>
+        <source>Encrypt transfers</source>
+        <translation>Cifra i trasferimenti</translation>
+    </message>
+    <message>
+        <source>Files are encrypted between the two devices. Turning this off makes every transfer readable by anyone on the same network.</source>
+        <translation>I file sono cifrati fra i due dispositivi. Disattivandolo, ogni trasferimento diventa leggibile da chiunque sia sulla stessa rete.</translation>
     </message>
     <message>
         <source>Files are saved as soon as they arrive. Convenient at home, unwise on a network you share.</source>
@@ -477,8 +513,16 @@
         <translation>Porta di ascolto</translation>
     </message>
     <message>
+        <source>Not set</source>
+        <translation>Non impostato</translation>
+    </message>
+    <message>
         <source>Notify me</source>
         <translation>Avvisami</translation>
+    </message>
+    <message>
+        <source>Only a salted hash of the code is stored, so it can be changed but never shown again.</source>
+        <translation>Del codice si conserva solo un hash con sale: può essere cambiato, mai più mostrato.</translation>
     </message>
     <message>
         <source>Other LocalSend devices look on 53317 by default. A different port still works, but only if the other side is told about it.</source>
@@ -505,6 +549,10 @@
         <translation>Registra che cosa è stato inviato e ricevuto, e dove è stato salvato.</translation>
     </message>
     <message>
+        <source>Remove the PIN</source>
+        <translation>Rimuovi il PIN</translation>
+    </message>
+    <message>
         <source>Require a PIN</source>
         <translation>Richiedi un PIN</translation>
     </message>
@@ -517,8 +565,20 @@
         <translation>Salvataggio</translation>
     </message>
     <message>
+        <source>Security</source>
+        <translation>Sicurezza</translation>
+    </message>
+    <message>
         <source>Senders must enter this code before you are even asked.</source>
         <translation>Chi invia deve inserire questo codice prima ancora che ti venga chiesto.</translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation>Impostato</translation>
+    </message>
+    <message>
+        <source>Set a PIN</source>
+        <translation>Imposta un PIN</translation>
     </message>
     <message>
         <source>Settings</source>
@@ -527,6 +587,10 @@
     <message>
         <source>Stops the device suspending mid-transfer. Uses more battery.</source>
         <translation>Impedisce al dispositivo di sospendersi durante un trasferimento. Consuma più batteria.</translation>
+    </message>
+    <message>
+        <source>Stored as a salted hash, so it cannot be shown again — only replaced.</source>
+        <translation>Conservato come hash con sale: non può essere mostrato di nuovo, solo sostituito.</translation>
     </message>
     <message>
         <source>Suggest another name</source>
@@ -539,6 +603,14 @@
     <message>
         <source>This device</source>
         <translation>Questo dispositivo</translation>
+    </message>
+    <message>
+        <source>This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.</source>
+        <translation>Questo dispositivo è identificato dall'impronta del suo certificato: cambiare questa impostazione lo fa apparire agli altri come un dispositivo nuovo.</translation>
+    </message>
+    <message>
+        <source>Unavailable on this device: %1</source>
+        <translation>Non disponibile su questo dispositivo: %1</translation>
     </message>
     <message>
         <source>What other devices call you.</source>

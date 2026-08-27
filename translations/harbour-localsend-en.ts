@@ -16,12 +16,24 @@
         <translation>Devices find each other with multicast. Plenty of networks block it — guest Wi-Fi almost always does. When that happens, Scan network on the main page finds them the slow way instead.</translation>
     </message>
     <message>
+        <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
+        <translation>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Fingerprint</translation>
     </message>
     <message>
         <source>Good to know</source>
         <translation>Good to know</translation>
+    </message>
+    <message>
+        <source>HTTP (not encrypted)</source>
+        <translation>HTTP (not encrypted)</translation>
+    </message>
+    <message>
+        <source>HTTPS (encrypted)</source>
+        <translation>HTTPS (encrypted)</translation>
     </message>
     <message>
         <source>Links</source>
@@ -52,8 +64,12 @@
         <translation>This device</translation>
     </message>
     <message>
-        <source>Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
-        <translation>Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.</translation>
+        <source>Transfers are encrypted between the two devices with a certificate this phone generated for itself. There is no certificate authority on a local network, so what identifies a device is the fingerprint above: it travels in every announcement, and a device presenting anything else is refused before a single byte is sent.</source>
+        <translation>Transfers are encrypted between the two devices with a certificate this phone generated for itself. There is no certificate authority on a local network, so what identifies a device is the fingerprint above: it travels in every announcement, and a device presenting anything else is refused before a single byte is sent.</translation>
+    </message>
+    <message>
+        <source>Transport</source>
+        <translation>Transport</translation>
     </message>
     <message>
         <source>Version</source>
@@ -197,6 +213,10 @@
         <translation>Device name</translation>
     </message>
     <message>
+        <source>Encrypted</source>
+        <translation>Encrypted</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Fingerprint</translation>
     </message>
@@ -227,6 +247,10 @@
     <message>
         <source>Nobody yet</source>
         <translation>Nobody yet</translation>
+    </message>
+    <message>
+        <source>Not encrypted</source>
+        <translation>Not encrypted</translation>
     </message>
     <message>
         <source>Not listening</source>
@@ -449,8 +473,20 @@
         <translation>Allow incoming files</translation>
     </message>
     <message>
+        <source>Change the PIN</source>
+        <translation>Change the PIN</translation>
+    </message>
+    <message>
         <source>Device name</source>
         <translation>Device name</translation>
+    </message>
+    <message>
+        <source>Encrypt transfers</source>
+        <translation>Encrypt transfers</translation>
+    </message>
+    <message>
+        <source>Files are encrypted between the two devices. Turning this off makes every transfer readable by anyone on the same network.</source>
+        <translation>Files are encrypted between the two devices. Turning this off makes every transfer readable by anyone on the same network.</translation>
     </message>
     <message>
         <source>Files are saved as soon as they arrive. Convenient at home, unwise on a network you share.</source>
@@ -477,8 +513,16 @@
         <translation>Listening port</translation>
     </message>
     <message>
+        <source>Not set</source>
+        <translation>Not set</translation>
+    </message>
+    <message>
         <source>Notify me</source>
         <translation>Notify me</translation>
+    </message>
+    <message>
+        <source>Only a salted hash of the code is stored, so it can be changed but never shown again.</source>
+        <translation>Only a salted hash of the code is stored, so it can be changed but never shown again.</translation>
     </message>
     <message>
         <source>Other LocalSend devices look on 53317 by default. A different port still works, but only if the other side is told about it.</source>
@@ -505,6 +549,10 @@
         <translation>Records what was sent and received, and where it was saved.</translation>
     </message>
     <message>
+        <source>Remove the PIN</source>
+        <translation>Remove the PIN</translation>
+    </message>
+    <message>
         <source>Require a PIN</source>
         <translation>Require a PIN</translation>
     </message>
@@ -517,8 +565,20 @@
         <translation>Saving</translation>
     </message>
     <message>
+        <source>Security</source>
+        <translation>Security</translation>
+    </message>
+    <message>
         <source>Senders must enter this code before you are even asked.</source>
         <translation>Senders must enter this code before you are even asked.</translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation>Set</translation>
+    </message>
+    <message>
+        <source>Set a PIN</source>
+        <translation>Set a PIN</translation>
     </message>
     <message>
         <source>Settings</source>
@@ -527,6 +587,10 @@
     <message>
         <source>Stops the device suspending mid-transfer. Uses more battery.</source>
         <translation>Stops the device suspending mid-transfer. Uses more battery.</translation>
+    </message>
+    <message>
+        <source>Stored as a salted hash, so it cannot be shown again — only replaced.</source>
+        <translation>Stored as a salted hash, so it cannot be shown again — only replaced.</translation>
     </message>
     <message>
         <source>Suggest another name</source>
@@ -539,6 +603,14 @@
     <message>
         <source>This device</source>
         <translation>This device</translation>
+    </message>
+    <message>
+        <source>This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.</source>
+        <translation>This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.</translation>
+    </message>
+    <message>
+        <source>Unavailable on this device: %1</source>
+        <translation>Unavailable on this device: %1</translation>
     </message>
     <message>
         <source>What other devices call you.</source>

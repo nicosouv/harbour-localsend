@@ -8,10 +8,30 @@ Comment=Send files over your local network
 Categories=Network;FileTransfer;
 
 [X-Sailjail]
-# Internet covers the LAN sockets the whole app is built on: the multicast
-# announcements, the listening HTTP server and the outgoing uploads. The rest
-# are the folders files are read from and written to - a transfer app that
-# cannot reach the user's own directories has nothing to send.
-Permissions=Internet;Documents;Downloads;Pictures;Videos;Music;RemovableMedia
+# Each entry below is here because something stops working without it, checked
+# against the definitions in sailfishos/sailjail-permissions rather than
+# guessed at. Base.permission already covers notifications and the cover
+# actions, so neither is listed.
+#
+#   Internet        Base sets "net none" and "protocol unix", so without this
+#                   the app has no sockets at all - not merely no Internet.
+#                   It grants inet/inet6, which is what the multicast
+#                   announcements, the listening server and the transfers
+#                   themselves need. Nothing here ever leaves the local
+#                   network; the name is about the socket family, not a
+#                   destination.
+#   Downloads       The default place received files are written.
+#   Documents       )
+#   Pictures        ) Base blacklists every XDG directory; each of these
+#   Videos          ) un-blacklists one of them. They are what the file
+#   Music           ) picker can read from, and so what can be sent.
+#   RemovableMedia  Base sets "disable-mnt", which hides the SD card. Without
+#                   it, media kept on a card can be neither sent nor saved to.
+#
+# Deliberately absent: MediaIndexing (we never query the tracker), Sharing (we
+# register no share target), and UserDirs (it is Documents, Downloads, Music,
+# Pictures, Videos and PublicDir in one - listing the five we use leaves
+# ~/Public alone).
+Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia
 OrganizationName=harbour-localsend
 ApplicationName=harbour-localsend

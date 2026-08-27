@@ -96,6 +96,26 @@ prepare-upload arrives → ReceiveService parks the connection unanswered
   → last file → finishSession() → history + transferFinished()
 ```
 
+## Security model
+
+Every device is its own certificate authority, so X.509 chain validation has
+nothing to say. What replaces it:
+
+- `Certificate` generates an EC P-256 self-signed pair once and keeps it. The
+  fingerprint is `sha256(cert.toDer())`, which is what the protocol means by
+  `fingerprint` in HTTPS mode.
+- `AppSettings::fingerprint()` returns that hash when encrypted and a stored
+  random value otherwise. **These must never diverge from what the server
+  actually presents**, or every peer refuses us.
+- `TlsClient::pin()` accepts a connection only when the presented certificate
+  hashes to what the peer announced, and `configure()` uses `VerifyPeer` so
+  that an unignored error actually aborts. `QueryPeer` reports errors and
+  connects anyway, which silently turns the check into a suggestion — there is
+  a test for exactly this.
+- `TlsClient::acceptUnknown()` exists only for the subnet sweep, where no
+  fingerprint is known yet. Its callers must then verify the claimed
+  fingerprint against `observedFingerprint()`. Never use it for a transfer.
+
 ## Invariants worth keeping
 
 1. **The prepare-upload connection is answered late, not early.** The sender
@@ -111,6 +131,11 @@ prepare-upload arrives → ReceiveService parks the connection unanswered
    drops the directory component before anything is written.
    `tst_transfer::fileNamesCannotEscapeTheDestination` proves it; do not
    weaken it.
+
+3b. **Secrets go through `Crypto`, never through Qt.** `QUuid::createUuid()`
+   falls back to `qrand()` when it cannot read the kernel pool, and a session
+   token from `qrand()` is guessable. `Crypto::randomBytes()` returns empty
+   rather than degrade. Compare tokens and PINs with `Crypto::equals()`.
 
 4. **Progress counts are absolute, never deltas.** `setFileTransferred(row,
    bytes)` takes the total for that file. A repeated signal must not
@@ -139,9 +164,11 @@ prepare-upload arrives → ReceiveService parks the connection unanswered
   code the handset rejects at runtime.
 - **QtQuick 2.6 maximum.**
 - **Harbour rules**: `harbour-` prefix, allowed dependencies only.
-- **Plain HTTP.** Announcing `protocol: "http"` interoperates, and a
-  self-signed certificate cannot be generated with Qt 5.6 alone. If HTTPS is
-  ever added, `fingerprint` must become the certificate hash.
+- **OpenSSL is linked directly** (`PKGCONFIG += openssl`) because Qt cannot
+  generate an X.509 certificate in any version. Only APIs present and
+  non-deprecated in both 1.1.1 (the device) and 3.x (the Docker lane) may be
+  used; `src/certificate.cpp` is the only file that talks to it, apart from
+  `src/crypto.cpp`.
 
 ## Translations
 

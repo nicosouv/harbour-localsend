@@ -7,6 +7,7 @@
 #include <QString>
 
 #include "deviceinfo.h"
+#include "ratelimiter.h"
 
 class AppSettings;
 class Discovery;
@@ -124,6 +125,12 @@ private:
     QTimer *m_acceptTimer;
     QTimer *m_idleTimer;
     QString m_listenError;
+
+    // Per-address backoff on wrong PINs. Deliberately not persisted: a
+    // restart clearing it costs an attacker a reboot of somebody else's
+    // phone, which is not a shortcut worth defending against, and persisting
+    // it would mean writing to disk on every failed guess.
+    RateLimiter m_pinAttempts;
 };
 
 #endif // RECEIVESERVICE_H

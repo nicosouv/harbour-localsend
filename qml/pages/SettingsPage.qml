@@ -48,6 +48,33 @@ Page {
 
             Item { width: 1; height: Theme.paddingLarge }
 
+            // --- transport ---------------------------------------------------
+
+            SectionHeader { text: qsTr("Security") }
+
+            TextSwitch {
+                text: qsTr("Encrypt transfers")
+                description: appSettings.transportError.length > 0
+                    ? qsTr("Unavailable on this device: %1").arg(appSettings.transportError)
+                    : qsTr("Files are encrypted between the two devices. Turning this off makes every transfer readable by anyone on the same network.")
+                checked: appSettings.secureTransport
+                enabled: appSettings.transportError.length === 0
+                onClicked: appSettings.secureTransport = checked
+            }
+
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - Theme.horizontalPageMargin * 2
+                wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.secondaryColor
+                // Worth saying once here rather than letting somebody wonder
+                // why their device vanished from a friend's list.
+                text: qsTr("This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.")
+            }
+
+            Item { width: 1; height: Theme.paddingLarge }
+
             // --- receiving -------------------------------------------------
 
             SectionHeader { text: qsTr("Receiving") }
@@ -72,22 +99,22 @@ Page {
                 description: qsTr("Senders must enter this code before you are even asked.")
                 enabled: appSettings.receiveEnabled
                 checked: appSettings.pinEnabled
-                onClicked: appSettings.pinEnabled = checked
+                onClicked: {
+                    appSettings.pinEnabled = checked
+                    // Switching the requirement on without a code would leave
+                    // a barrier that lets everything through, so the dialog
+                    // follows immediately rather than waiting to be found.
+                    if (checked && !appSettings.pinIsSet)
+                        pageStack.push(pinSetupComponent)
+                }
             }
 
-            TextField {
-                width: parent.width
+            ValueButton {
                 visible: appSettings.pinEnabled
-                text: appSettings.pin
                 label: qsTr("PIN")
-                placeholderText: qsTr("4 to 8 digits")
-                inputMethodHints: Qt.ImhDigitsOnly
-                EnterKey.iconSource: "image://theme/icon-m-enter-close"
-                EnterKey.onClicked: focus = false
-                onActiveFocusChanged: {
-                    if (!activeFocus)
-                        appSettings.pin = text
-                }
+                value: appSettings.pinIsSet ? qsTr("Set") : qsTr("Not set")
+                description: qsTr("Only a salted hash of the code is stored, so it can be changed but never shown again.")
+                onClicked: pageStack.push(pinSetupComponent)
             }
 
             ValueButton {
@@ -182,6 +209,53 @@ Page {
         }
 
         VerticalScrollDecorator {}
+    }
+
+    Component {
+        id: pinSetupComponent
+
+        Dialog {
+            id: pinDialog
+
+            canAccept: pinField.text.length >= 4 && pinField.text.length <= 8
+
+            Column {
+                width: parent.width
+
+                DialogHeader {
+                    title: appSettings.pinIsSet ? qsTr("Change the PIN")
+                                                : qsTr("Set a PIN")
+                }
+
+                TextField {
+                    id: pinField
+                    width: parent.width
+                    label: qsTr("PIN")
+                    placeholderText: qsTr("4 to 8 digits")
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    echoMode: TextInput.Password
+                    focus: true
+                    description: qsTr("Stored as a salted hash, so it cannot be shown again — only replaced.")
+                    EnterKey.iconSource: "image://theme/icon-m-enter-accept"
+                    EnterKey.onClicked: pinDialog.accept()
+                }
+
+                Item { width: 1; height: Theme.paddingLarge }
+
+                Button {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr("Remove the PIN")
+                    visible: appSettings.pinIsSet
+                    onClicked: {
+                        appSettings.setPin("")
+                        appSettings.pinEnabled = false
+                        pageStack.pop()
+                    }
+                }
+            }
+
+            onAccepted: appSettings.setPin(pinField.text)
+        }
     }
 
     Component {

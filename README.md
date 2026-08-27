@@ -19,6 +19,9 @@ what the other is running.
 - **Sends anything.** Photos, documents, archives, several files at once,
   picked in either order: choose a device and then the files, or stage files
   first and pick a device after.
+- **Encrypts by default.** TLS between the two devices, with a certificate the
+  phone generates for itself and a fingerprint check in place of the
+  certificate authority a local network does not have. See below.
 - **Shows you what is arriving before it lands.** Sender, file names and total
   size, with Accept and Decline, unless you have turned that off.
 - **Optional PIN**, so a sender has to know a code before you are even asked.
@@ -60,20 +63,49 @@ traffic past.
 
 ## Security, plainly
 
-Transfers use **plain HTTP** on port 53317. The encrypted transport that the
-desktop and mobile apps offer is not implemented here yet, because generating
-a self-signed certificate needs machinery Qt 5.6 does not provide. In
-practice:
+Nothing ever leaves your network. There is no server, no relay and no account:
+one device opens a TCP connection to the other's local address and pushes the
+bytes. "HTTP" here is the message format, not the web. Even discovery is
+multicast on 224.0.0.167, an address routers do not forward by construction.
 
-- The protocol interoperates fine — LocalSend reads each peer's advertised
-  transport and uses it.
-- On a home network or your own hotspot, nobody is watching.
-- On café, hotel or office Wi-Fi, treat a transfer as visible.
+**Transfers are encrypted by default.** On first launch the app generates its
+own EC P-256 certificate and serves TLS 1.2+ from it.
 
-The PIN and the accept prompt protect against *unwanted* transfers, not
-against eavesdropping. File names arriving from a peer are stripped of any
-directory component before anything is written, so a hostile sender cannot
-write outside your download folder — there is a test that proves it.
+There is no certificate authority on a home network and there never will be,
+so what identifies a device is its **fingerprint** — the SHA-256 of its
+certificate, which the protocol carries in every announcement. Before sending
+anything, the app checks that the certificate the peer presents hashes to the
+fingerprint that peer announced. If it does not, the connection is dropped
+before a single byte of file data goes out. That is the whole model, and it is
+the same one the official apps use.
+
+What that does and does not buy you:
+
+- A passive eavesdropper on the Wi-Fi sees nothing but ciphertext.
+- Someone who can both intercept traffic *and* forge the multicast
+  announcement could still substitute their own key. Raising the bar that far
+  is what a self-signed system can do; it is not the same as a CA.
+- Encryption can be turned off in Settings for interoperability. The main page
+  says **Not encrypted** in red the whole time it is off.
+
+Other hardening, all of it covered by tests:
+
+- **File names from a peer are attacker-controlled.** Any directory component
+  is stripped before anything is written, so `../../.ssh/authorized_keys`
+  lands as a file in your download folder and nowhere else.
+- **The PIN is never stored.** Only a salted PBKDF2-SHA256 hash of it, at
+  120 000 iterations, which is why the app can change it but never show it.
+- **PIN guessing is rate limited.** A four-digit PIN is ten thousand guesses
+  and a phone will answer them as fast as it can; after three failures an
+  address gets exponential backoff and a `429` with `Retry-After`.
+- **Session tokens come from the CSPRNG**, 192 bits each, and are compared in
+  constant time. They are bearer capabilities, not identifiers.
+- **Limits that stop a peer exhausting the device**: concurrent connections,
+  header size, buffered body size, declared file count, and idle timeouts on
+  both the socket and the session.
+
+The PIN and the accept prompt protect against *unwanted* transfers; the
+encryption protects against *watched* ones. They are different problems.
 
 ## Building
 
@@ -101,6 +133,22 @@ For a local build with the SDK:
 sfdk config target=SailfishOS-4.5.0.18-armv7hl
 sfdk build
 ```
+
+## Sandbox permissions
+
+Sailjail's `Base` profile starts an app with `net none` and every XDG
+directory blacklisted, so each entry below buys back exactly one thing. They
+are justified line by line in `harbour-localsend.desktop`.
+
+| Permission | Why |
+| --- | --- |
+| `Internet` | Base allows only unix sockets. This grants `inet`/`inet6` — the socket family, not a destination. Nothing here reaches the Internet. |
+| `Downloads` | Where received files are written by default. |
+| `Documents`, `Pictures`, `Videos`, `Music` | Un-blacklists each directory so the picker can read from it. |
+| `RemovableMedia` | Base sets `disable-mnt`, which hides the SD card. |
+
+Deliberately not requested: `MediaIndexing`, `Sharing`, and `UserDirs` — the
+last of which would bundle `PublicDir` in with the five above.
 
 ## Translations
 

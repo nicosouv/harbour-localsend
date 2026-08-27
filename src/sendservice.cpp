@@ -15,6 +15,7 @@
 #include "appsettings.h"
 #include "historymodel.h"
 #include "protocol.h"
+#include "tlsclient.h"
 #include "transfermodel.h"
 
 namespace {
@@ -137,9 +138,14 @@ void SendService::requestUpload(const QString &pin)
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
+    TlsClient::configure(request);
 
     m_reply = m_network->post(request,
                               QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    // The file list and the PIN go over this request, so it is pinned to the
+    // fingerprint the device announced. A peer that cannot present that
+    // certificate does not get told what we were about to send it.
+    TlsClient::pin(m_reply.data(), m_peer.fingerprint);
     connect(m_reply.data(), &QNetworkReply::finished,
             this, &SendService::onPrepareFinished);
 }
@@ -288,12 +294,16 @@ void SendService::startNextFile()
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/octet-stream"));
     request.setHeader(QNetworkRequest::ContentLengthHeader, entry.size);
+    TlsClient::configure(request);
 
     m_transfer->setFileStatus(row, TransferModel::FileTransferring);
 
     // The device stays ours: QNetworkAccessManager reads from it but never
     // owns it, so it has to outlive the reply and be closed by hand.
     m_reply = m_network->post(request, m_currentFile);
+    // This is the request carrying the file itself. Nothing goes out over it
+    // until the certificate has been matched against the announcement.
+    TlsClient::pin(m_reply.data(), m_peer.fingerprint);
     connect(m_reply.data(), &QNetworkReply::finished,
             this, &SendService::onUploadFinished);
 
@@ -432,7 +442,10 @@ void SendService::notifyPeerCancelled()
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
+    TlsClient::configure(request);
+
     QNetworkReply *reply = m_network->post(request, QByteArray());
+    TlsClient::pin(reply, m_peer.fingerprint);
     connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);
 }
 

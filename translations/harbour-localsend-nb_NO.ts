@@ -16,12 +16,24 @@
         <translation>Enheter finner hverandre med multicast. Mange nettverk blokkerer det — gjeste-wifi nesten alltid. Da finner Søk i nettverket på hovedsiden dem på den langsomme måten i stedet.</translation>
     </message>
     <message>
+        <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
+        <translation>Kryptering er av: overføringer går som ukryptert HTTP på port %1 og kan leses av alle som følger med på nettverket. Hjemme eller på ditt eget delte nett er det ingen; på kafé- eller kontor-wifi kan det være noen.</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Fingeravtrykk</translation>
     </message>
     <message>
         <source>Good to know</source>
         <translation>Verdt å vite</translation>
+    </message>
+    <message>
+        <source>HTTP (not encrypted)</source>
+        <translation>HTTP (ukryptert)</translation>
+    </message>
+    <message>
+        <source>HTTPS (encrypted)</source>
+        <translation>HTTPS (kryptert)</translation>
     </message>
     <message>
         <source>Links</source>
@@ -52,8 +64,12 @@
         <translation>Denne enheten</translation>
     </message>
     <message>
-        <source>Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
-        <translation>Overføringer bruker ukryptert HTTP på port %1. Den krypterte transporten som skrivebords- og mobilappene tilbyr, er ikke implementert her ennå, så gå ut fra at en overføring er synlig for alle som kan følge med på nettverket. Hjemme eller på ditt eget delte nett er det ingen; på kafé- eller kontor-wifi kan det være noen.</translation>
+        <source>Transfers are encrypted between the two devices with a certificate this phone generated for itself. There is no certificate authority on a local network, so what identifies a device is the fingerprint above: it travels in every announcement, and a device presenting anything else is refused before a single byte is sent.</source>
+        <translation>Overføringer krypteres mellom de to enhetene med et sertifikat denne telefonen har laget selv. På et lokalt nettverk finnes ingen sertifikatmyndighet: det som identifiserer en enhet, er fingeravtrykket over. Det følger med hver kunngjøring, og en enhet som viser noe annet, avvises før en eneste byte sendes.</translation>
+    </message>
+    <message>
+        <source>Transport</source>
+        <translation>Transport</translation>
     </message>
     <message>
         <source>Version</source>
@@ -197,6 +213,10 @@
         <translation>Enhetsnavn</translation>
     </message>
     <message>
+        <source>Encrypted</source>
+        <translation>Kryptert</translation>
+    </message>
+    <message>
         <source>Fingerprint</source>
         <translation>Fingeravtrykk</translation>
     </message>
@@ -227,6 +247,10 @@
     <message>
         <source>Nobody yet</source>
         <translation>Ingen ennå</translation>
+    </message>
+    <message>
+        <source>Not encrypted</source>
+        <translation>Ukryptert</translation>
     </message>
     <message>
         <source>Not listening</source>
@@ -449,8 +473,20 @@
         <translation>Tillat innkommende filer</translation>
     </message>
     <message>
+        <source>Change the PIN</source>
+        <translation>Endre PIN</translation>
+    </message>
+    <message>
         <source>Device name</source>
         <translation>Enhetsnavn</translation>
+    </message>
+    <message>
+        <source>Encrypt transfers</source>
+        <translation>Krypter overføringer</translation>
+    </message>
+    <message>
+        <source>Files are encrypted between the two devices. Turning this off makes every transfer readable by anyone on the same network.</source>
+        <translation>Filer krypteres mellom de to enhetene. Slår du det av, kan hvem som helst på samme nettverk lese hver overføring.</translation>
     </message>
     <message>
         <source>Files are saved as soon as they arrive. Convenient at home, unwise on a network you share.</source>
@@ -477,8 +513,16 @@
         <translation>Lytteport</translation>
     </message>
     <message>
+        <source>Not set</source>
+        <translation>Ikke angitt</translation>
+    </message>
+    <message>
         <source>Notify me</source>
         <translation>Varsle meg</translation>
+    </message>
+    <message>
+        <source>Only a salted hash of the code is stored, so it can be changed but never shown again.</source>
+        <translation>Bare en saltet hash av koden lagres, så den kan endres, men aldri vises igjen.</translation>
     </message>
     <message>
         <source>Other LocalSend devices look on 53317 by default. A different port still works, but only if the other side is told about it.</source>
@@ -505,6 +549,10 @@
         <translation>Noterer hva som ble sendt og mottatt, og hvor det ble lagret.</translation>
     </message>
     <message>
+        <source>Remove the PIN</source>
+        <translation>Fjern PIN-en</translation>
+    </message>
+    <message>
         <source>Require a PIN</source>
         <translation>Krev en PIN</translation>
     </message>
@@ -517,8 +565,20 @@
         <translation>Lagring</translation>
     </message>
     <message>
+        <source>Security</source>
+        <translation>Sikkerhet</translation>
+    </message>
+    <message>
         <source>Senders must enter this code before you are even asked.</source>
         <translation>Avsenderen må oppgi denne koden før du i det hele tatt blir spurt.</translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation>Angitt</translation>
+    </message>
+    <message>
+        <source>Set a PIN</source>
+        <translation>Angi en PIN</translation>
     </message>
     <message>
         <source>Settings</source>
@@ -527,6 +587,10 @@
     <message>
         <source>Stops the device suspending mid-transfer. Uses more battery.</source>
         <translation>Hindrer at enheten går i dvale midt i en overføring. Bruker mer batteri.</translation>
+    </message>
+    <message>
+        <source>Stored as a salted hash, so it cannot be shown again — only replaced.</source>
+        <translation>Lagres som en saltet hash, så den kan ikke vises igjen — bare erstattes.</translation>
     </message>
     <message>
         <source>Suggest another name</source>
@@ -539,6 +603,14 @@
     <message>
         <source>This device</source>
         <translation>Denne enheten</translation>
+    </message>
+    <message>
+        <source>This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.</source>
+        <translation>Denne enheten identifiseres av fingeravtrykket til sertifikatet sitt, så å endre denne innstillingen får den til å se ut som en ny enhet for alle andre.</translation>
+    </message>
+    <message>
+        <source>Unavailable on this device: %1</source>
+        <translation>Ikke tilgjengelig på denne enheten: %1</translation>
     </message>
     <message>
         <source>What other devices call you.</source>

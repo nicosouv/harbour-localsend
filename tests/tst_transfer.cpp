@@ -16,6 +16,7 @@
 #include "historymodel.h"
 #include "receiveservice.h"
 #include "sendservice.h"
+#include "tlsclient.h"
 #include "transfermodel.h"
 
 // Both ends of the protocol in one process, talking over the loopback.
@@ -34,6 +35,8 @@ private slots:
     void cleanup();
 
     void sendsFilesEndToEnd();
+    void sendsFilesOverTls();
+    void refusesAPeerWhoseCertificateDoesNotMatch();
     void receiverCanDeclineTheRequest();
     void manualAcceptStartsTheTransfer();
     void pinIsRequiredAndAccepted();
@@ -52,6 +55,7 @@ private:
     QVariantMap loopbackDevice() const;
     QString writeFile(const QString &name, const QByteArray &content);
     Reply post(const QString &path, const QByteArray &body);
+    void restartReceiver();
     static quint16 freePort();
 
     QTemporaryDir *m_home;
@@ -98,6 +102,9 @@ void TestTransfer::init()
     m_settings->setPin(QString());
     m_settings->setFolderPerSender(false);
     m_settings->setHistoryEnabled(false);
+    // Plain HTTP unless a test asks otherwise, so the protocol logic is
+    // exercised without TLS in the way of reading a failure.
+    m_settings->setSecureTransport(false);
 
     m_network = new QNetworkAccessManager;
     m_devices = new DeviceModel;
@@ -136,11 +143,22 @@ QVariantMap TestTransfer::loopbackDevice() const
     QVariantMap device;
     device.insert(QStringLiteral("alias"), QStringLiteral("Loopback"));
     device.insert(QStringLiteral("deviceType"), QStringLiteral("desktop"));
-    device.insert(QStringLiteral("fingerprint"), QStringLiteral("peer-fingerprint"));
+    // Both ends share one AppSettings here, so the receiver presents exactly
+    // the identity the sender is told to expect - which is the arrangement
+    // the pinning check is meant to accept.
+    device.insert(QStringLiteral("fingerprint"), m_settings->fingerprint());
     device.insert(QStringLiteral("address"), QStringLiteral("127.0.0.1"));
     device.insert(QStringLiteral("port"), m_settings->port());
-    device.insert(QStringLiteral("protocol"), QStringLiteral("http"));
+    device.insert(QStringLiteral("protocol"),
+                  m_settings->isEncrypted() ? QStringLiteral("https")
+                                            : QStringLiteral("http"));
     return device;
+}
+
+void TestTransfer::restartReceiver()
+{
+    m_receiver->stopListening();
+    QVERIFY2(m_receiver->startListening(), qPrintable(m_receiver->listenError()));
 }
 
 QString TestTransfer::writeFile(const QString &name, const QByteArray &content)
@@ -156,14 +174,22 @@ QString TestTransfer::writeFile(const QString &name, const QByteArray &content)
 
 TestTransfer::Reply TestTransfer::post(const QString &path, const QByteArray &body)
 {
-    QUrl url(QStringLiteral("http://127.0.0.1:%1/api/localsend/v2%2")
-             .arg(m_settings->port()).arg(path));
+    const QString scheme = m_settings->isEncrypted() ? QStringLiteral("https")
+                                                     : QStringLiteral("http");
+    QUrl url(QStringLiteral("%1://127.0.0.1:%2/api/localsend/v2%3")
+             .arg(scheme).arg(m_settings->port()).arg(path));
 
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
+    if (m_settings->isEncrypted())
+        TlsClient::configure(request);
 
     QNetworkReply *reply = m_network->post(request, body);
+    // This helper stands in for a hostile peer, not for our own client, so it
+    // takes whatever certificate it is given.
+    if (m_settings->isEncrypted())
+        TlsClient::acceptUnknown(reply);
 
     QEventLoop loop;
     connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
@@ -211,6 +237,64 @@ void TestTransfer::sendsFilesEndToEnd()
 
     // Nothing may be left half-written under the temporary name.
     QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/big.bin.part")));
+}
+
+void TestTransfer::sendsFilesOverTls()
+{
+    m_settings->setSecureTransport(true);
+    QVERIFY2(m_settings->isEncrypted(), qPrintable(m_settings->transportError()));
+    restartReceiver();
+
+    // Announcing "https" while serving plaintext, or the reverse, is a
+    // failure mode with no error message on either side, so the two are
+    // checked to agree before anything is sent.
+    QCOMPARE(m_settings->self().protocol, QStringLiteral("https"));
+    QCOMPARE(m_settings->fingerprint(), m_settings->identity().fingerprint());
+
+    const QByteArray content(48 * 1024, 'S');
+    QStringList paths;
+    paths << writeFile(QStringLiteral("secret.bin"), content);
+
+    QSignalSpy finished(m_sender, SIGNAL(finished(QString, int)));
+    m_sender->sendFiles(loopbackDevice(), paths);
+
+    QTRY_VERIFY_WITH_TIMEOUT(finished.count() == 1, 20000);
+    QCOMPARE(finished.first().at(0).toString(), QStringLiteral("finished"));
+
+    QFile landed(m_home->path() + QStringLiteral("/secret.bin"));
+    QVERIFY(landed.open(QIODevice::ReadOnly));
+    QCOMPARE(landed.readAll(), content);
+}
+
+void TestTransfer::refusesAPeerWhoseCertificateDoesNotMatch()
+{
+    // The whole security model rests on this: a self-signed certificate means
+    // nothing on its own, and the only thing that makes it an identity is
+    // that it hashes to the fingerprint the device announced. If a mismatch
+    // were accepted anyway, the encryption would be protecting a conversation
+    // with whoever answered the socket.
+    m_settings->setSecureTransport(true);
+    QVERIFY(m_settings->isEncrypted());
+    restartReceiver();
+
+    QStringList paths;
+    paths << writeFile(QStringLiteral("not-sent.bin"), "must not arrive");
+
+    QVariantMap impostor = loopbackDevice();
+    impostor.insert(QStringLiteral("fingerprint"),
+                    QString(64, QLatin1Char('a')));
+
+    QSignalSpy finished(m_sender, SIGNAL(finished(QString, int)));
+    m_sender->sendFiles(impostor, paths);
+
+    QTRY_VERIFY_WITH_TIMEOUT(finished.count() == 1, 20000);
+    QCOMPARE(finished.first().at(0).toString(), QStringLiteral("failed"));
+    QCOMPARE(m_outgoing->completedCount(), 0);
+
+    // And nothing was written on the other side either: the request never got
+    // as far as a session.
+    QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/not-sent.bin")));
+    QCOMPARE(m_incoming->stateName(), QStringLiteral("idle"));
 }
 
 void TestTransfer::receiverCanDeclineTheRequest()

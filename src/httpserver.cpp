@@ -3,6 +3,7 @@
 #include <QIODevice>
 #include <QJsonDocument>
 #include <QPair>
+#include <QSslSocket>
 #include <QTcpSocket>
 #include <QTimer>
 #include <QUrl>
@@ -22,6 +23,15 @@ const int IdleTimeoutMs = 60 * 1000;
 // disk synchronously, so a smaller window here keeps memory flat when the
 // network is faster than the storage.
 const int SocketReadBuffer = 256 * 1024;
+
+// The protocol runs one session at a time and a session uses one socket at a
+// time, so anything past a handful is either a badly behaved client or an
+// attempt to exhaust our file descriptors.
+const int MaxConnections = 24;
+
+// Long enough for a slow handshake on a busy radio, short enough that a peer
+// that opens a socket and says nothing does not hold a slot.
+const int HandshakeTimeoutMs = 15 * 1000;
 
 QByteArray reasonPhrase(int status)
 {
@@ -79,6 +89,13 @@ HttpConnection::HttpConnection(QTcpSocket *socket, QObject *parent)
     m_idleTimer->setInterval(IdleTimeoutMs);
     connect(m_idleTimer, &QTimer::timeout, this, &HttpConnection::onIdleTimeout);
     m_idleTimer->start();
+
+    // Over TLS the request usually arrives inside the same event loop pass as
+    // the handshake, so by the time this object exists readyRead has already
+    // been and gone. Whatever is sitting in the socket has to be picked up
+    // explicitly or the connection stalls until it times out.
+    if (m_socket->bytesAvailable() > 0)
+        QMetaObject::invokeMethod(this, "onReadyRead", Qt::QueuedConnection);
 }
 
 HttpConnection::~HttpConnection()
@@ -375,6 +392,10 @@ void HttpConnection::respond(int status, const QByteArray &payload,
     if (!contentType.isEmpty())
         response += "Content-Type: " + contentType + "\r\n";
     response += "Content-Length: " + QByteArray::number(payload.size()) + "\r\n";
+    for (int i = 0; i < m_extraHeaders.count(); ++i) {
+        response += m_extraHeaders.at(i).first + ": "
+                 + m_extraHeaders.at(i).second + "\r\n";
+    }
     // LocalSend's browser client is cross-origin by construction.
     response += "Access-Control-Allow-Origin: *\r\n";
     response += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n";
@@ -387,6 +408,11 @@ void HttpConnection::respond(int status, const QByteArray &payload,
         m_socket->flush();
         m_socket->disconnectFromHost();
     }
+}
+
+void HttpConnection::addHeader(const QByteArray &name, const QByteArray &value)
+{
+    m_extraHeaders.append(qMakePair(name, value));
 }
 
 void HttpConnection::respondJson(int status, const QJsonObject &object)
@@ -410,7 +436,24 @@ void HttpConnection::onDisconnected()
 
 HttpServer::HttpServer(QObject *parent)
     : QTcpServer(parent)
+    , m_liveConnections(0)
 {
+}
+
+void HttpServer::setIdentity(const QSslCertificate &certificate, const QSslKey &key)
+{
+    m_certificate = certificate;
+    m_key = key;
+}
+
+bool HttpServer::isSecure() const
+{
+    return !m_certificate.isNull() && !m_key.isNull();
+}
+
+int HttpServer::liveConnections() const
+{
+    return m_liveConnections;
 }
 
 bool HttpServer::start(quint16 port)
@@ -445,16 +488,86 @@ QString HttpServer::lastError() const
     return m_lastError;
 }
 
-void HttpServer::incomingConnection(qintptr socketDescriptor)
+void HttpServer::track(QTcpSocket *socket)
 {
-    QTcpSocket *socket = new QTcpSocket(this);
-    if (!socket->setSocketDescriptor(socketDescriptor)) {
-        delete socket;
-        return;
-    }
+    ++m_liveConnections;
+    connect(socket, &QObject::destroyed, this, [this]() {
+        --m_liveConnections;
+    });
+}
 
+void HttpServer::adopt(QTcpSocket *socket)
+{
     // The connection adopts the socket and outlives this call; it deletes
     // itself once the socket closes.
     HttpConnection *connection = new HttpConnection(socket, this);
     emit connectionReady(connection);
+}
+
+void HttpServer::incomingConnection(qintptr socketDescriptor)
+{
+    if (m_liveConnections >= MaxConnections) {
+        // A device that opens more sockets than this is not transferring
+        // files, and every one we accept is a file descriptor and a buffer.
+        // Refusing costs the peer a retry; accepting costs us the app.
+        QTcpSocket refused;
+        refused.setSocketDescriptor(socketDescriptor);
+        refused.abort();
+        return;
+    }
+
+    if (!isSecure()) {
+        QTcpSocket *socket = new QTcpSocket(this);
+        if (!socket->setSocketDescriptor(socketDescriptor)) {
+            delete socket;
+            return;
+        }
+        track(socket);
+        adopt(socket);
+        return;
+    }
+
+    QSslSocket *socket = new QSslSocket(this);
+    if (!socket->setSocketDescriptor(socketDescriptor)) {
+        delete socket;
+        return;
+    }
+    track(socket);
+
+    socket->setLocalCertificate(m_certificate);
+    socket->setPrivateKey(m_key);
+    socket->setProtocol(QSsl::TlsV1_2OrLater);
+    // We do not authenticate senders with certificates - the protocol has no
+    // notion of a client identity - so asking for one would only fail
+    // handshakes with peers that have none to offer.
+    socket->setPeerVerifyMode(QSslSocket::VerifyNone);
+
+    // Nothing may read from the socket until the handshake is done, so the
+    // HttpConnection is not built until then.
+    connect(socket, &QSslSocket::encrypted, this, [this, socket]() {
+        adopt(socket);
+    });
+
+    connect(socket, static_cast<void (QSslSocket::*)(const QList<QSslError> &)>(
+                        &QSslSocket::sslErrors),
+            socket, [socket](const QList<QSslError> &) {
+        // Server side with no peer verification: anything reported here is
+        // about a client certificate we never asked for.
+        socket->ignoreSslErrors();
+    });
+
+    connect(socket, static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
+                        &QAbstractSocket::error),
+            socket, [socket](QAbstractSocket::SocketError) {
+        socket->deleteLater();
+    });
+
+    socket->startServerEncryption();
+
+    // A peer that opens a socket and never completes a handshake would
+    // otherwise sit against the connection limit indefinitely.
+    QTimer::singleShot(HandshakeTimeoutMs, socket, [socket]() {
+        if (!socket->isEncrypted())
+            socket->abort();
+    });
 }
