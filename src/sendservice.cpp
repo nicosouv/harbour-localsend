@@ -139,7 +139,8 @@ void SendService::requestUpload(const QString &pin)
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
-    TlsClient::configure(request);
+    TlsClient::configure(request, m_settings->identity().certificate(),
+                         m_settings->identity().privateKey());
 
     m_reply = m_network->post(request,
                               QJsonDocument(payload).toJson(QJsonDocument::Compact));
@@ -300,7 +301,8 @@ void SendService::startNextFile()
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/octet-stream"));
     request.setHeader(QNetworkRequest::ContentLengthHeader, entry.size);
-    TlsClient::configure(request);
+    TlsClient::configure(request, m_settings->identity().certificate(),
+                         m_settings->identity().privateKey());
 
     m_transfer->setFileStatus(row, TransferModel::FileTransferring);
 
@@ -450,7 +452,8 @@ void SendService::notifyPeerCancelled()
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
-    TlsClient::configure(request);
+    TlsClient::configure(request, m_settings->identity().certificate(),
+                         m_settings->identity().privateKey());
 
     QNetworkReply *reply = m_network->post(request, QByteArray());
     TlsClient::pin(reply, m_peer.fingerprint);

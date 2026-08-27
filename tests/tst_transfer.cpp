@@ -184,8 +184,10 @@ TestTransfer::Reply TestTransfer::post(const QString &path, const QByteArray &bo
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
-    if (m_settings->isEncrypted())
-        TlsClient::configure(request);
+    if (m_settings->isEncrypted()) {
+        TlsClient::configure(request, m_settings->identity().certificate(),
+                             m_settings->identity().privateKey());
+    }
 
     QNetworkReply *reply = m_network->post(request, body);
     // This helper stands in for a hostile peer, not for our own client, so it

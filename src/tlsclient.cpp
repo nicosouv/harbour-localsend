@@ -11,10 +11,19 @@
 
 namespace TlsClient {
 
-void configure(QNetworkRequest &request)
+void configure(QNetworkRequest &request, const QSslCertificate &certificate,
+               const QSslKey &key)
 {
     QSslConfiguration configuration = QSslConfiguration::defaultConfiguration();
     configuration.setProtocol(QSsl::TlsV1_2OrLater);
+
+    // Mutual TLS: the peer asks for this, and refuses the connection without
+    // it. The same pair we serve with, because the fingerprint the peer knows
+    // us by is the hash of exactly this certificate.
+    if (!certificate.isNull() && !key.isNull()) {
+        configuration.setLocalCertificate(certificate);
+        configuration.setPrivateKey(key);
+    }
 
     // VerifyPeer, and not QueryPeer, even though we do the deciding ourselves
     // in the sslErrors handler.

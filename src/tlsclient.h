@@ -1,6 +1,8 @@
 #ifndef TLSCLIENT_H
 #define TLSCLIENT_H
 
+#include <QSslCertificate>
+#include <QSslKey>
 #include <QString>
 
 class QNetworkReply;
@@ -23,8 +25,17 @@ class QNetworkRequest;
 // does not exist here.
 namespace TlsClient {
 
-// TLS 1.2 or better on an outgoing request.
-void configure(QNetworkRequest &request);
+// TLS 1.2 or better on an outgoing request, presenting our own identity.
+//
+// The certificate is not optional in practice. LocalSend servers ask for a
+// client certificate during the handshake - that is how the receiving side
+// gets to pin the sender in turn - and a client with none to offer is cut off
+// with "tlsv13 alert certificate required" before it has sent a byte. The
+// symptom is a connection error with no HTTP status, indistinguishable from
+// the device being switched off.
+void configure(QNetworkRequest &request,
+               const QSslCertificate &certificate,
+               const QSslKey &key);
 
 // Accepts the connection only when the presented certificate hashes to
 // `expectedFingerprint`. An empty fingerprint pins against nothing and so

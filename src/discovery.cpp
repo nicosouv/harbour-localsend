@@ -303,7 +303,8 @@ void Discovery::postRegister(const DeviceInfo &peer)
     QNetworkRequest request(QUrl(peer.apiBase() + QLatin1String(Protocol::PathRegister)));
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/json"));
-    TlsClient::configure(request);
+    TlsClient::configure(request, m_settings->identity().certificate(),
+                         m_settings->identity().privateKey());
 
     const QByteArray body = QJsonDocument(
         m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
@@ -419,7 +420,8 @@ void Discovery::pumpScanQueue()
         request.setHeader(QNetworkRequest::ContentTypeHeader,
                           QStringLiteral("application/json"));
         if (secure)
-            TlsClient::configure(request);
+            TlsClient::configure(request, m_settings->identity().certificate(),
+                         m_settings->identity().privateKey());
 
         const QByteArray body = QJsonDocument(
             m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
