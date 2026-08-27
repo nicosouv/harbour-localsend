@@ -1,0 +1,197 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+env:
+  SAILFISH_RELEASE: '4.5.0.18'
+
+jobs:
+  checks:
+    name: "Static checks"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev qtbase5-dev-tools qtdeclarative5-dev \
+            qtdeclarative5-dev-tools qt5-qmake make g++ pkg-config
+
+      - name: Qt 5.6 compatibility, QML traps, translation drift
+        run: |
+          python3 scripts/check_qt56.py
+          python3 scripts/check_qml.py
+          python3 scripts/check_translations.py
+
+      - name: Compile-check every source file
+        run: bash tests/syntax-check.sh
+
+      - name: Parse every QML file
+        run: find qml -name '*.qml' -print0 | xargs -0 qmllint
+
+  unit-tests:
+    name: "Unit tests"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev qtbase5-dev-tools qt5-qmake cmake ninja-build g++
+
+      - name: Build tests
+        run: cmake -S tests -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build
+
+      - name: Run tests
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+
+  build:
+    name: "Build RPM for ${{ matrix.arch }}"
+    runs-on: ubuntu-latest
+    needs: [checks]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armv7hl, i486, aarch64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="0.1.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Update spec version
+        run: |
+          sed -i "s/^Version:.*/Version:    ${{ steps.version.outputs.version }}/" rpm/harbour-localsend.spec
+          grep "^Version:" rpm/harbour-localsend.spec
+
+      - name: Build RPM
+        uses: R1tschY/sailfish-build-rpm@v1
+        with:
+          arch: ${{ matrix.arch }}
+          release: ${{ env.SAILFISH_RELEASE }}
+          fix-version: false
+
+      - name: List built packages
+        run: ls -lh RPMS/
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-${{ matrix.arch }}
+          path: RPMS/*.rpm
+
+  create-release:
+    needs: [build, unit-tests]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: rpms
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --reverse)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create release body
+        run: |
+          cat > release_notes.md << 'EOF'
+          # LocalSend for Sailfish OS ${{ steps.version.outputs.version }}
+
+          ## Installation
+
+          Download the RPM for your device:
+
+          - **aarch64**: Xperia 10 II / III / IV / V, Xperia 10 (64-bit builds)
+          - **armv7hl**: Jolla 1, Jolla C, Xperia X, Xperia XA2, Xperia 10
+          - **i486**: Sailfish OS emulator
+
+          Then, on the device:
+
+          ```bash
+          devel-su
+          pkcon install-local harbour-localsend-*.rpm
+          ```
+
+          Or open the RPM from the file manager.
+
+          ## What's new
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          ## Getting started
+
+          1. Open **LocalSend** on your phone and on another device on the same network
+          2. The two should find each other within a few seconds
+          3. Tap a device to send it files, or just wait to be sent some
+
+          If nothing shows up, the network is probably blocking multicast: pull
+          down and choose **Scan network**.
+
+          ## Notes
+
+          This is an unofficial client. It speaks the LocalSend v2 protocol over
+          plain HTTP, so it interoperates with the official apps, but the
+          encrypted (HTTPS) transport is not implemented yet - keep it to
+          networks you trust.
+          EOF
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: release_notes.md
+          files: |
+            rpms/rpm-armv7hl/*.rpm
+            rpms/rpm-i486/*.rpm
+            rpms/rpm-aarch64/*.rpm
+          draft: false
+          prerelease: false

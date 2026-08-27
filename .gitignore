@@ -1,0 +1,70 @@
+# Qt
+*.pro.user
+*.pro.user.*
+*.qmlproject.user
+*.qmlproject.user.*
+Makefile*
+# Qt Creator shadow build trees. Anchored to a directory on purpose: a bare
+# *build-* also matches .github/workflows/build-release.yml, which is exactly
+# the file the release depends on and exactly the one nobody notices missing.
+build-*/
+*-build-*/
+*.o
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+*.moc
+
+# Qt Creator
+*.autosave
+
+# Compilation
+*.o
+*.a
+*.so
+*.so.*
+
+# Executables
+harbour-localsend
+
+# Build directories
+build/
+debug/
+release/
+
+# RPM build
+RPMS/
+SRPMS/
+BUILD/
+BUILDROOT/
+SOURCES/
+SPECS/
+
+# Sailfish SDK
+.mb2/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.bak
+*.tmp
+*.temp
+
+# Python
+__pycache__/
+*.pyc
+
+# Translation compiled files
+*.qm
+
+# User settings
+*.conf

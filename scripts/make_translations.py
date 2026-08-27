@@ -1,0 +1,959 @@
+#!/usr/bin/env python3
+"""Writes the .ts catalogues from one table.
+
+lupdate is not available in any lane that runs here, and hand-editing seven
+XML files per string change is how catalogues drift. So the translations live
+in one dictionary keyed by the English source, the contexts are read back out
+of the QML, and the files are generated.
+
+Keying by source rather than by (context, source) is deliberate: "Settings"
+appears in three files and should not be able to come out differently in each
+of them.
+
+Run it after adding or changing a qsTr(), then commit the result:
+
+    docker compose run --rm checks     # tells you what is missing
+    python3 scripts/make_translations.py
+"""
+
+import re
+import sys
+from pathlib import Path
+from xml.sax.saxutils import escape
+
+ROOT = Path(__file__).resolve().parent.parent
+QML_DIR = ROOT / "qml"
+TS_DIR = ROOT / "translations"
+
+LOCALES = ["en", "fr", "de", "es", "fi", "it", "nb_NO"]
+
+QSTR = re.compile(r'qsTr\(\s*"((?:[^"\\]|\\.)*)"')
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+LINE_COMMENT = re.compile(r"//[^\n]*")
+
+# Plural entries are a [singular, plural] pair; every language here uses two
+# numerus forms, which is what keeps this table readable.
+TRANSLATIONS = {
+    # --- actions and short labels -------------------------------------
+    "About": {
+        "en": "About", "fr": "À propos", "de": "Über", "es": "Acerca de",
+        "fi": "Tietoja", "it": "Informazioni", "nb_NO": "Om",
+    },
+    "Settings": {
+        "en": "Settings", "fr": "Réglages", "de": "Einstellungen",
+        "es": "Ajustes", "fi": "Asetukset", "it": "Impostazioni",
+        "nb_NO": "Innstillinger",
+    },
+    "History": {
+        "en": "History", "fr": "Historique", "de": "Verlauf",
+        "es": "Historial", "fi": "Historia", "it": "Cronologia",
+        "nb_NO": "Historikk",
+    },
+    "Done": {
+        "en": "Done", "fr": "Terminé", "de": "Fertig", "es": "Listo",
+        "fi": "Valmis", "it": "Fatto", "nb_NO": "Ferdig",
+    },
+    "Stop": {
+        "en": "Stop", "fr": "Arrêter", "de": "Anhalten", "es": "Detener",
+        "fi": "Pysäytä", "it": "Ferma", "nb_NO": "Stopp",
+    },
+    "Open": {
+        "en": "Open", "fr": "Ouvrir", "de": "Öffnen", "es": "Abrir",
+        "fi": "Avaa", "it": "Apri", "nb_NO": "Åpne",
+    },
+    "Open folder": {
+        "en": "Open folder", "fr": "Ouvrir le dossier", "de": "Ordner öffnen",
+        "es": "Abrir la carpeta", "fi": "Avaa kansio", "it": "Apri la cartella",
+        "nb_NO": "Åpne mappen",
+    },
+    "Remove": {
+        "en": "Remove", "fr": "Retirer", "de": "Entfernen", "es": "Quitar",
+        "fi": "Poista", "it": "Rimuovi", "nb_NO": "Fjern",
+    },
+    "Removing": {
+        "en": "Removing", "fr": "Retrait", "de": "Wird entfernt",
+        "es": "Quitando", "fi": "Poistetaan", "it": "Rimozione",
+        "nb_NO": "Fjerner",
+    },
+    "Accept": {
+        "en": "Accept", "fr": "Accepter", "de": "Annehmen", "es": "Aceptar",
+        "fi": "Hyväksy", "it": "Accetta", "nb_NO": "Godta",
+    },
+    "Decline": {
+        "en": "Decline", "fr": "Refuser", "de": "Ablehnen", "es": "Rechazar",
+        "fi": "Hylkää", "it": "Rifiuta", "nb_NO": "Avslå",
+    },
+    "Send": {
+        "en": "Send", "fr": "Envoyer", "de": "Senden", "es": "Enviar",
+        "fi": "Lähetä", "it": "Invia", "nb_NO": "Send",
+    },
+    "Send files": {
+        "en": "Send files", "fr": "Envoyer des fichiers", "de": "Dateien senden",
+        "es": "Enviar archivos", "fi": "Lähetä tiedostoja",
+        "it": "Invia file", "nb_NO": "Send filer",
+    },
+    "Add files": {
+        "en": "Add files", "fr": "Ajouter des fichiers", "de": "Dateien hinzufügen",
+        "es": "Añadir archivos", "fi": "Lisää tiedostoja",
+        "it": "Aggiungi file", "nb_NO": "Legg til filer",
+    },
+    "Add more files": {
+        "en": "Add more files", "fr": "Ajouter d'autres fichiers",
+        "de": "Weitere Dateien hinzufügen", "es": "Añadir más archivos",
+        "fi": "Lisää tiedostoja", "it": "Aggiungi altri file",
+        "nb_NO": "Legg til flere filer",
+    },
+    "Clear all": {
+        "en": "Clear all", "fr": "Tout vider", "de": "Alles leeren",
+        "es": "Vaciar todo", "fi": "Tyhjennä kaikki", "it": "Svuota tutto",
+        "nb_NO": "Tøm alt",
+    },
+    "Clear selection": {
+        "en": "Clear selection", "fr": "Vider la sélection",
+        "de": "Auswahl leeren", "es": "Vaciar la selección",
+        "fi": "Tyhjennä valinta", "it": "Svuota la selezione",
+        "nb_NO": "Tøm utvalget",
+    },
+    "Clear history": {
+        "en": "Clear history", "fr": "Effacer l'historique",
+        "de": "Verlauf löschen", "es": "Borrar el historial",
+        "fi": "Tyhjennä historia", "it": "Cancella la cronologia",
+        "nb_NO": "Tøm historikken",
+    },
+    "Clearing history": {
+        "en": "Clearing history", "fr": "Effacement de l'historique",
+        "de": "Verlauf wird gelöscht", "es": "Borrando el historial",
+        "fi": "Tyhjennetään historiaa", "it": "Cancellazione della cronologia",
+        "nb_NO": "Tømmer historikken",
+    },
+    "Scan network": {
+        "en": "Scan network", "fr": "Balayer le réseau", "de": "Netz absuchen",
+        "es": "Explorar la red", "fi": "Etsi verkosta", "it": "Scansiona la rete",
+        "nb_NO": "Søk i nettverket",
+    },
+    "Stop scanning": {
+        "en": "Stop scanning", "fr": "Arrêter le balayage",
+        "de": "Suche abbrechen", "es": "Detener la exploración",
+        "fi": "Lopeta etsintä", "it": "Ferma la scansione",
+        "nb_NO": "Stopp søket",
+    },
+    "Look again": {
+        "en": "Look again", "fr": "Chercher à nouveau", "de": "Erneut suchen",
+        "es": "Buscar de nuevo", "fi": "Etsi uudelleen",
+        "it": "Cerca di nuovo", "nb_NO": "Se etter igjen",
+    },
+    "Suggest another": {
+        "en": "Suggest another", "fr": "En proposer un autre",
+        "de": "Anderen vorschlagen", "es": "Sugerir otro",
+        "fi": "Ehdota toista", "it": "Proponine un altro",
+        "nb_NO": "Foreslå et annet",
+    },
+    "Suggest another name": {
+        "en": "Suggest another name", "fr": "Proposer un autre nom",
+        "de": "Anderen Namen vorschlagen", "es": "Sugerir otro nombre",
+        "fi": "Ehdota toista nimeä", "it": "Proponi un altro nome",
+        "nb_NO": "Foreslå et annet navn",
+    },
+    "Device details": {
+        "en": "Device details", "fr": "Détails de l'appareil",
+        "de": "Gerätedetails", "es": "Detalles del dispositivo",
+        "fi": "Laitteen tiedot", "it": "Dettagli del dispositivo",
+        "nb_NO": "Enhetsdetaljer",
+    },
+    "Choose files to send": {
+        "en": "Choose files to send", "fr": "Choisir les fichiers à envoyer",
+        "de": "Dateien zum Senden wählen", "es": "Elegir archivos para enviar",
+        "fi": "Valitse lähetettävät tiedostot", "it": "Scegli i file da inviare",
+        "nb_NO": "Velg filer å sende",
+    },
+    "Send staged files": {
+        "en": "Send staged files", "fr": "Envoyer les fichiers en attente",
+        "de": "Bereitgelegte Dateien senden", "es": "Enviar los archivos preparados",
+        "fi": "Lähetä valitut tiedostot", "it": "Invia i file preparati",
+        "nb_NO": "Send de klargjorte filene",
+    },
+    "Select files to send": {
+        "en": "Select files to send", "fr": "Sélectionner les fichiers à envoyer",
+        "de": "Dateien zum Senden auswählen", "es": "Seleccionar archivos para enviar",
+        "fi": "Valitse lähetettävät tiedostot",
+        "it": "Seleziona i file da inviare", "nb_NO": "Velg filer å sende",
+    },
+
+    # --- main page ------------------------------------------------------
+    "LocalSend": {
+        "en": "LocalSend", "fr": "LocalSend", "de": "LocalSend",
+        "es": "LocalSend", "fi": "LocalSend", "it": "LocalSend",
+        "nb_NO": "LocalSend",
+    },
+    "Nearby devices": {
+        "en": "Nearby devices", "fr": "Appareils à proximité",
+        "de": "Geräte in der Nähe", "es": "Dispositivos cercanos",
+        "fi": "Lähellä olevat laitteet", "it": "Dispositivi nelle vicinanze",
+        "nb_NO": "Enheter i nærheten",
+    },
+    "Looking for devices": {
+        "en": "Looking for devices", "fr": "Recherche d'appareils",
+        "de": "Suche nach Geräten", "es": "Buscando dispositivos",
+        "fi": "Etsitään laitteita", "it": "Ricerca di dispositivi",
+        "nb_NO": "Ser etter enheter",
+    },
+    "Nobody yet": {
+        "en": "Nobody yet", "fr": "Personne pour l'instant",
+        "de": "Noch niemand", "es": "Nadie todavía",
+        "fi": "Ei vielä ketään", "it": "Ancora nessuno",
+        "nb_NO": "Ingen ennå",
+    },
+    "Open LocalSend on another device on the same network. It should turn up here within a few seconds.": {
+        "en": "Open LocalSend on another device on the same network. It should turn up here within a few seconds.",
+        "fr": "Ouvrez LocalSend sur un autre appareil du même réseau. Il devrait apparaître ici en quelques secondes.",
+        "de": "Öffnen Sie LocalSend auf einem anderen Gerät im selben Netz. Es sollte hier binnen weniger Sekunden auftauchen.",
+        "es": "Abre LocalSend en otro dispositivo de la misma red. Debería aparecer aquí en unos segundos.",
+        "fi": "Avaa LocalSend toisella samassa verkossa olevalla laitteella. Sen pitäisi ilmestyä tähän muutamassa sekunnissa.",
+        "it": "Apri LocalSend su un altro dispositivo della stessa rete. Dovrebbe comparire qui in pochi secondi.",
+        "nb_NO": "Åpne LocalSend på en annen enhet på samme nettverk. Den bør dukke opp her i løpet av noen sekunder.",
+    },
+    "Receiving is off. Turn it back on in Settings to be found.": {
+        "en": "Receiving is off. Turn it back on in Settings to be found.",
+        "fr": "La réception est désactivée. Réactivez-la dans les réglages pour être trouvé.",
+        "de": "Der Empfang ist aus. Schalten Sie ihn in den Einstellungen wieder ein, um gefunden zu werden.",
+        "es": "La recepción está desactivada. Vuelve a activarla en los ajustes para que te encuentren.",
+        "fi": "Vastaanotto on pois päältä. Kytke se takaisin asetuksista, jotta sinut löydetään.",
+        "it": "La ricezione è disattivata. Riattivala nelle impostazioni per essere trovato.",
+        "nb_NO": "Mottak er av. Slå det på igjen i innstillingene for å bli funnet.",
+    },
+    "Receiving is off — others cannot send to you": {
+        "en": "Receiving is off — others cannot send to you",
+        "fr": "Réception désactivée — personne ne peut vous envoyer de fichiers",
+        "de": "Empfang aus — niemand kann Ihnen etwas senden",
+        "es": "Recepción desactivada: nadie puede enviarte nada",
+        "fi": "Vastaanotto pois päältä — kukaan ei voi lähettää sinulle",
+        "it": "Ricezione disattivata — nessuno può inviarti file",
+        "nb_NO": "Mottak er av — ingen kan sende til deg",
+    },
+    "Not listening": {
+        "en": "Not listening", "fr": "Pas à l'écoute", "de": "Nicht empfangsbereit",
+        "es": "Sin escuchar", "fi": "Ei kuuntele", "it": "Non in ascolto",
+        "nb_NO": "Lytter ikke",
+    },
+    "Port %1 is unavailable": {
+        "en": "Port %1 is unavailable", "fr": "Le port %1 est indisponible",
+        "de": "Port %1 ist nicht verfügbar", "es": "El puerto %1 no está disponible",
+        "fi": "Portti %1 ei ole käytettävissä", "it": "La porta %1 non è disponibile",
+        "nb_NO": "Port %1 er utilgjengelig",
+    },
+    "Ready on port %1": {
+        "en": "Ready on port %1", "fr": "Prêt sur le port %1",
+        "de": "Bereit auf Port %1", "es": "Listo en el puerto %1",
+        "fi": "Valmiina portissa %1", "it": "Pronto sulla porta %1",
+        "nb_NO": "Klar på port %1",
+    },
+    "Ready · %1 on port %2": {
+        "en": "Ready · %1 on port %2", "fr": "Prêt · %1 sur le port %2",
+        "de": "Bereit · %1 auf Port %2", "es": "Listo · %1 en el puerto %2",
+        "fi": "Valmiina · %1 portissa %2", "it": "Pronto · %1 sulla porta %2",
+        "nb_NO": "Klar · %1 på port %2",
+    },
+    "This network is blocking discovery. Pull down and choose Scan network.": {
+        "en": "This network is blocking discovery. Pull down and choose Scan network.",
+        "fr": "Ce réseau bloque la découverte. Tirez vers le bas et choisissez Balayer le réseau.",
+        "de": "Dieses Netz blockiert die Gerätesuche. Ziehen Sie herunter und wählen Sie Netz absuchen.",
+        "es": "Esta red bloquea el descubrimiento. Desliza hacia abajo y elige Explorar la red.",
+        "fi": "Tämä verkko estää laitteiden löytämisen. Vedä alas ja valitse Etsi verkosta.",
+        "it": "Questa rete blocca il rilevamento. Tira verso il basso e scegli Scansiona la rete.",
+        "nb_NO": "Dette nettverket blokkerer oppdagelse. Dra ned og velg Søk i nettverket.",
+    },
+    "Scanning the network… %1%": {
+        "en": "Scanning the network… %1%", "fr": "Balayage du réseau… %1 %",
+        "de": "Netz wird abgesucht… %1 %", "es": "Explorando la red… %1 %",
+        "fi": "Etsitään verkosta… %1 %", "it": "Scansione della rete… %1 %",
+        "nb_NO": "Søker i nettverket… %1 %",
+    },
+    "Your device name": {
+        "en": "Your device name", "fr": "Le nom de votre appareil",
+        "de": "Name Ihres Geräts", "es": "El nombre de tu dispositivo",
+        "fi": "Laitteesi nimi", "it": "Il nome del tuo dispositivo",
+        "nb_NO": "Navnet på enheten din",
+    },
+    "Shown to other devices": {
+        "en": "Shown to other devices", "fr": "Visible par les autres appareils",
+        "de": "Für andere Geräte sichtbar", "es": "Visible para otros dispositivos",
+        "fi": "Näkyy muille laitteille", "it": "Visibile agli altri dispositivi",
+        "nb_NO": "Vises for andre enheter",
+    },
+    "Device name": {
+        "en": "Device name", "fr": "Nom de l'appareil", "de": "Gerätename",
+        "es": "Nombre del dispositivo", "fi": "Laitteen nimi",
+        "it": "Nome del dispositivo", "nb_NO": "Enhetsnavn",
+    },
+    "Device": {
+        "en": "Device", "fr": "Appareil", "de": "Gerät", "es": "Dispositivo",
+        "fi": "Laite", "it": "Dispositivo", "nb_NO": "Enhet",
+    },
+    "Model": {
+        "en": "Model", "fr": "Modèle", "de": "Modell", "es": "Modelo",
+        "fi": "Malli", "it": "Modello", "nb_NO": "Modell",
+    },
+    "Type": {
+        "en": "Type", "fr": "Type", "de": "Typ", "es": "Tipo",
+        "fi": "Tyyppi", "it": "Tipo", "nb_NO": "Type",
+    },
+    "Address": {
+        "en": "Address", "fr": "Adresse", "de": "Adresse", "es": "Dirección",
+        "fi": "Osoite", "it": "Indirizzo", "nb_NO": "Adresse",
+    },
+    "Transport": {
+        "en": "Transport", "fr": "Transport", "de": "Transport",
+        "es": "Transporte", "fi": "Siirtotapa", "it": "Trasporto",
+        "nb_NO": "Transport",
+    },
+    "Fingerprint": {
+        "en": "Fingerprint", "fr": "Empreinte", "de": "Fingerabdruck",
+        "es": "Huella", "fi": "Sormenjälki", "it": "Impronta",
+        "nb_NO": "Fingeravtrykk",
+    },
+    "Unknown": {
+        "en": "Unknown", "fr": "Inconnu", "de": "Unbekannt",
+        "es": "Desconocido", "fi": "Tuntematon", "it": "Sconosciuto",
+        "nb_NO": "Ukjent",
+    },
+
+    # --- tray and selection ------------------------------------------------
+    "pick a device to send": {
+        "en": "pick a device to send", "fr": "choisissez un appareil",
+        "de": "Gerät zum Senden wählen", "es": "elige un dispositivo",
+        "fi": "valitse laite", "it": "scegli un dispositivo",
+        "nb_NO": "velg en enhet",
+    },
+    "Ready to send": {
+        "en": "Ready to send", "fr": "Prêt à envoyer", "de": "Bereit zum Senden",
+        "es": "Listo para enviar", "fi": "Valmiina lähetettäväksi",
+        "it": "Pronto per l'invio", "nb_NO": "Klar til å sendes",
+    },
+    "Nothing staged": {
+        "en": "Nothing staged", "fr": "Rien en attente", "de": "Nichts bereitgelegt",
+        "es": "Nada preparado", "fi": "Ei mitään valittuna",
+        "it": "Niente in attesa", "nb_NO": "Ingenting klargjort",
+    },
+    "Pull down to add files": {
+        "en": "Pull down to add files", "fr": "Tirez vers le bas pour ajouter des fichiers",
+        "de": "Herunterziehen, um Dateien hinzuzufügen",
+        "es": "Desliza hacia abajo para añadir archivos",
+        "fi": "Vedä alas lisätäksesi tiedostoja",
+        "it": "Tira verso il basso per aggiungere file",
+        "nb_NO": "Dra ned for å legge til filer",
+    },
+
+    # --- transfer ----------------------------------------------------------
+    "Sending": {
+        "en": "Sending", "fr": "Envoi", "de": "Senden", "es": "Enviando",
+        "fi": "Lähetetään", "it": "Invio", "nb_NO": "Sender",
+    },
+    "Receiving": {
+        "en": "Receiving", "fr": "Réception", "de": "Empfang",
+        "es": "Recepción", "fi": "Vastaanotto", "it": "Ricezione",
+        "nb_NO": "Mottak",
+    },
+    "Receiving off": {
+        "en": "Receiving off", "fr": "Réception désactivée", "de": "Empfang aus",
+        "es": "Recepción desactivada", "fi": "Vastaanotto pois",
+        "it": "Ricezione disattivata", "nb_NO": "Mottak av",
+    },
+    "Incoming": {
+        "en": "Incoming", "fr": "Entrant", "de": "Eingehend",
+        "es": "Entrante", "fi": "Saapuva", "it": "In arrivo",
+        "nb_NO": "Innkommende",
+    },
+    "Incoming files": {
+        "en": "Incoming files", "fr": "Fichiers entrants",
+        "de": "Eingehende Dateien", "es": "Archivos entrantes",
+        "fi": "Saapuvat tiedostot", "it": "File in arrivo",
+        "nb_NO": "Innkommende filer",
+    },
+    "What they are sending": {
+        "en": "What they are sending", "fr": "Ce qui vous est envoyé",
+        "de": "Was gesendet wird", "es": "Lo que te envían",
+        "fi": "Mitä sinulle lähetetään", "it": "Che cosa ti stanno inviando",
+        "nb_NO": "Hva som sendes",
+    },
+    "from %1": {
+        "en": "from %1", "fr": "depuis %1", "de": "von %1", "es": "desde %1",
+        "fi": "osoitteesta %1", "it": "da %1", "nb_NO": "fra %1",
+    },
+    "in %1": {
+        "en": "in %1", "fr": "dans %1", "de": "in %1", "es": "en %1",
+        "fi": "kansiossa %1", "it": "in %1", "nb_NO": "i %1",
+    },
+    "Saved to %1": {
+        "en": "Saved to %1", "fr": "Enregistré dans %1",
+        "de": "Gespeichert in %1", "es": "Se guardará en %1",
+        "fi": "Tallennetaan kansioon %1", "it": "Salvato in %1",
+        "nb_NO": "Lagres i %1",
+    },
+    "Files": {
+        "en": "Files", "fr": "Fichiers", "de": "Dateien", "es": "Archivos",
+        "fi": "Tiedostot", "it": "File", "nb_NO": "Filer",
+    },
+    "Starting…": {
+        "en": "Starting…", "fr": "Démarrage…", "de": "Wird gestartet…",
+        "es": "Empezando…", "fi": "Aloitetaan…", "it": "Avvio…",
+        "nb_NO": "Starter…",
+    },
+    "%1 · %2 left": {
+        "en": "%1 · %2 left", "fr": "%1 · %2 restant", "de": "%1 · noch %2",
+        "es": "%1 · queda %2", "fi": "%1 · %2 jäljellä", "it": "%1 · %2 rimanenti",
+        "nb_NO": "%1 · %2 igjen",
+    },
+    "Waiting for %1 to accept": {
+        "en": "Waiting for %1 to accept", "fr": "En attente de l'accord de %1",
+        "de": "Warten auf die Zustimmung von %1",
+        "es": "Esperando a que %1 acepte", "fi": "Odotetaan, että %1 hyväksyy",
+        "it": "In attesa che %1 accetti", "nb_NO": "Venter på at %1 godtar",
+    },
+    "Transfer failed": {
+        "en": "Transfer failed", "fr": "Échec du transfert",
+        "de": "Übertragung fehlgeschlagen", "es": "La transferencia falló",
+        "fi": "Siirto epäonnistui", "it": "Trasferimento non riuscito",
+        "nb_NO": "Overføringen mislyktes",
+    },
+    "Transfer stopped": {
+        "en": "Transfer stopped", "fr": "Transfert arrêté",
+        "de": "Übertragung angehalten", "es": "Transferencia detenida",
+        "fi": "Siirto pysäytetty", "it": "Trasferimento interrotto",
+        "nb_NO": "Overføringen ble stoppet",
+    },
+    "Transfer incomplete": {
+        "en": "Transfer incomplete", "fr": "Transfert incomplet",
+        "de": "Übertragung unvollständig", "es": "Transferencia incompleta",
+        "fi": "Siirto jäi kesken", "it": "Trasferimento incompleto",
+        "nb_NO": "Ufullstendig overføring",
+    },
+    "failed": {
+        "en": "failed", "fr": "échec", "de": "fehlgeschlagen", "es": "fallido",
+        "fi": "epäonnistui", "it": "non riuscito", "nb_NO": "mislyktes",
+    },
+    "skipped": {
+        "en": "skipped", "fr": "ignoré", "de": "übersprungen", "es": "omitido",
+        "fi": "ohitettu", "it": "saltato", "nb_NO": "hoppet over",
+    },
+    "incomplete": {
+        "en": "incomplete", "fr": "incomplet", "de": "unvollständig",
+        "es": "incompleto", "fi": "kesken", "it": "incompleto",
+        "nb_NO": "ufullstendig",
+    },
+    "%1 wants to send you files": {
+        "en": "%1 wants to send you files",
+        "fr": "%1 veut vous envoyer des fichiers",
+        "de": "%1 möchte Ihnen Dateien senden",
+        "es": "%1 quiere enviarte archivos",
+        "fi": "%1 haluaa lähettää sinulle tiedostoja",
+        "it": "%1 vuole inviarti dei file",
+        "nb_NO": "%1 vil sende deg filer",
+    },
+
+    # --- history -----------------------------------------------------------
+    "From %1": {
+        "en": "From %1", "fr": "De %1", "de": "Von %1", "es": "De %1",
+        "fi": "Lähettäjä %1", "it": "Da %1", "nb_NO": "Fra %1",
+    },
+    "To %1": {
+        "en": "To %1", "fr": "Vers %1", "de": "An %1", "es": "A %1",
+        "fi": "Vastaanottaja %1", "it": "A %1", "nb_NO": "Til %1",
+    },
+    "+%1 more": {
+        "en": "+%1 more", "fr": "+%1 autre(s)", "de": "+%1 weitere",
+        "es": "+%1 más", "fi": "+%1 muuta", "it": "+%1 altri",
+        "nb_NO": "+%1 til",
+    },
+    "Nothing yet": {
+        "en": "Nothing yet", "fr": "Rien pour l'instant", "de": "Noch nichts",
+        "es": "Nada todavía", "fi": "Ei vielä mitään", "it": "Ancora niente",
+        "nb_NO": "Ingenting ennå",
+    },
+    "Transfers you send and receive will be listed here.": {
+        "en": "Transfers you send and receive will be listed here.",
+        "fr": "Les transferts envoyés et reçus apparaîtront ici.",
+        "de": "Gesendete und empfangene Übertragungen erscheinen hier.",
+        "es": "Las transferencias enviadas y recibidas aparecerán aquí.",
+        "fi": "Lähettämäsi ja vastaanottamasi siirrot näkyvät tässä.",
+        "it": "I trasferimenti inviati e ricevuti compariranno qui.",
+        "nb_NO": "Overføringer du sender og mottar vises her.",
+    },
+
+    # --- PIN ----------------------------------------------------------------
+    "PIN": {
+        "en": "PIN", "fr": "Code PIN", "de": "PIN", "es": "PIN",
+        "fi": "PIN-koodi", "it": "PIN", "nb_NO": "PIN",
+    },
+    "PIN required": {
+        "en": "PIN required", "fr": "Code PIN requis", "de": "PIN erforderlich",
+        "es": "Se requiere PIN", "fi": "PIN-koodi vaaditaan",
+        "it": "PIN richiesto", "nb_NO": "PIN kreves",
+    },
+    "%1 is asking for a PIN before accepting files.": {
+        "en": "%1 is asking for a PIN before accepting files.",
+        "fr": "%1 demande un code PIN avant d'accepter des fichiers.",
+        "de": "%1 verlangt eine PIN, bevor Dateien angenommen werden.",
+        "es": "%1 pide un PIN antes de aceptar archivos.",
+        "fi": "%1 pyytää PIN-koodia ennen tiedostojen hyväksymistä.",
+        "it": "%1 chiede un PIN prima di accettare i file.",
+        "nb_NO": "%1 ber om en PIN før filer godtas.",
+    },
+    "That code was not accepted. Try again.": {
+        "en": "That code was not accepted. Try again.",
+        "fr": "Ce code a été refusé. Réessayez.",
+        "de": "Dieser Code wurde abgelehnt. Versuchen Sie es erneut.",
+        "es": "Ese código no se aceptó. Inténtalo de nuevo.",
+        "fi": "Koodia ei hyväksytty. Yritä uudelleen.",
+        "it": "Questo codice non è stato accettato. Riprova.",
+        "nb_NO": "Koden ble ikke godtatt. Prøv igjen.",
+    },
+    "4 to 8 digits": {
+        "en": "4 to 8 digits", "fr": "4 à 8 chiffres", "de": "4 bis 8 Ziffern",
+        "es": "De 4 a 8 dígitos", "fi": "4–8 numeroa", "it": "Da 4 a 8 cifre",
+        "nb_NO": "4 til 8 sifre",
+    },
+
+    # --- settings -------------------------------------------------------------
+    "This device": {
+        "en": "This device", "fr": "Cet appareil", "de": "Dieses Gerät",
+        "es": "Este dispositivo", "fi": "Tämä laite", "it": "Questo dispositivo",
+        "nb_NO": "Denne enheten",
+    },
+    "What other devices call you.": {
+        "en": "What other devices call you.",
+        "fr": "Le nom sous lequel les autres appareils vous voient.",
+        "de": "So nennen Sie andere Geräte.",
+        "es": "Así te llaman los demás dispositivos.",
+        "fi": "Tällä nimellä muut laitteet näkevät sinut.",
+        "it": "Il nome con cui ti vedono gli altri dispositivi.",
+        "nb_NO": "Slik ser andre enheter deg.",
+    },
+    "Allow incoming files": {
+        "en": "Allow incoming files", "fr": "Autoriser les fichiers entrants",
+        "de": "Eingehende Dateien zulassen", "es": "Permitir archivos entrantes",
+        "fi": "Salli saapuvat tiedostot", "it": "Consenti i file in arrivo",
+        "nb_NO": "Tillat innkommende filer",
+    },
+    "When off, this device stops announcing itself and refuses transfers.": {
+        "en": "When off, this device stops announcing itself and refuses transfers.",
+        "fr": "Désactivé, cet appareil cesse de s'annoncer et refuse les transferts.",
+        "de": "Ist dies aus, meldet sich das Gerät nicht mehr und lehnt Übertragungen ab.",
+        "es": "Si está desactivado, el dispositivo deja de anunciarse y rechaza las transferencias.",
+        "fi": "Pois päältä laite lakkaa ilmoittamasta itsestään ja hylkää siirrot.",
+        "it": "Se disattivato, il dispositivo smette di annunciarsi e rifiuta i trasferimenti.",
+        "nb_NO": "Når dette er av, slutter enheten å kunngjøre seg og avviser overføringer.",
+    },
+    "Accept without asking": {
+        "en": "Accept without asking", "fr": "Accepter sans demander",
+        "de": "Ohne Nachfrage annehmen", "es": "Aceptar sin preguntar",
+        "fi": "Hyväksy kysymättä", "it": "Accetta senza chiedere",
+        "nb_NO": "Godta uten å spørre",
+    },
+    "Files are saved as soon as they arrive. Convenient at home, unwise on a network you share.": {
+        "en": "Files are saved as soon as they arrive. Convenient at home, unwise on a network you share.",
+        "fr": "Les fichiers sont enregistrés dès leur arrivée. Pratique chez soi, imprudent sur un réseau partagé.",
+        "de": "Dateien werden sofort gespeichert. Zu Hause praktisch, in einem geteilten Netz unklug.",
+        "es": "Los archivos se guardan nada más llegar. Cómodo en casa, imprudente en una red compartida.",
+        "fi": "Tiedostot tallennetaan heti niiden saapuessa. Kotona kätevää, jaetussa verkossa harkitsematonta.",
+        "it": "I file vengono salvati appena arrivano. Comodo a casa, imprudente su una rete condivisa.",
+        "nb_NO": "Filer lagres med én gang de kommer. Praktisk hjemme, uklokt på et delt nettverk.",
+    },
+    "Require a PIN": {
+        "en": "Require a PIN", "fr": "Exiger un code PIN", "de": "PIN verlangen",
+        "es": "Exigir un PIN", "fi": "Vaadi PIN-koodi", "it": "Richiedi un PIN",
+        "nb_NO": "Krev en PIN",
+    },
+    "Senders must enter this code before you are even asked.": {
+        "en": "Senders must enter this code before you are even asked.",
+        "fr": "L'expéditeur doit saisir ce code avant même que la question vous soit posée.",
+        "de": "Der Absender muss diesen Code eingeben, bevor Sie überhaupt gefragt werden.",
+        "es": "Quien envía debe introducir este código antes de que se te pregunte siquiera.",
+        "fi": "Lähettäjän on annettava tämä koodi ennen kuin sinulta edes kysytään.",
+        "it": "Chi invia deve inserire questo codice prima ancora che ti venga chiesto.",
+        "nb_NO": "Avsenderen må oppgi denne koden før du i det hele tatt blir spurt.",
+    },
+    "Port": {
+        "en": "Port", "fr": "Port", "de": "Port", "es": "Puerto",
+        "fi": "Portti", "it": "Porta", "nb_NO": "Port",
+    },
+    "Listening port": {
+        "en": "Listening port", "fr": "Port d'écoute", "de": "Empfangsport",
+        "es": "Puerto de escucha", "fi": "Kuunneltava portti",
+        "it": "Porta di ascolto", "nb_NO": "Lytteport",
+    },
+    "53317 is the standard. Change it only if something else is using the port.": {
+        "en": "53317 is the standard. Change it only if something else is using the port.",
+        "fr": "53317 est le port standard. Ne le changez que si un autre programme l'utilise.",
+        "de": "53317 ist der Standard. Ändern Sie ihn nur, wenn etwas anderes den Port belegt.",
+        "es": "53317 es el estándar. Cámbialo solo si otra cosa está usando el puerto.",
+        "fi": "53317 on vakioportti. Vaihda se vain, jos jokin muu käyttää sitä.",
+        "it": "53317 è la porta standard. Cambiala solo se è già occupata da altro.",
+        "nb_NO": "53317 er standarden. Endre den bare hvis noe annet bruker porten.",
+    },
+    "Other LocalSend devices look on 53317 by default. A different port still works, but only if the other side is told about it.": {
+        "en": "Other LocalSend devices look on 53317 by default. A different port still works, but only if the other side is told about it.",
+        "fr": "Les autres appareils LocalSend cherchent sur 53317 par défaut. Un autre port fonctionne, mais seulement si l'autre côté en est informé.",
+        "de": "Andere LocalSend-Geräte suchen standardmäßig auf 53317. Ein anderer Port funktioniert, aber nur wenn die Gegenseite davon weiß.",
+        "es": "Los demás dispositivos LocalSend buscan en el 53317 por omisión. Otro puerto funciona, pero solo si el otro lado lo sabe.",
+        "fi": "Muut LocalSend-laitteet etsivät oletuksena portista 53317. Muukin portti toimii, mutta vain jos toinen osapuoli tietää siitä.",
+        "it": "Gli altri dispositivi LocalSend cercano sulla 53317 per impostazione predefinita. Un'altra porta funziona, ma solo se l'altro lato ne è informato.",
+        "nb_NO": "Andre LocalSend-enheter ser på 53317 som standard. En annen port fungerer, men bare hvis den andre siden får vite om den.",
+    },
+    "Saving": {
+        "en": "Saving", "fr": "Enregistrement", "de": "Speichern",
+        "es": "Guardado", "fi": "Tallennus", "it": "Salvataggio",
+        "nb_NO": "Lagring",
+    },
+    "Save to": {
+        "en": "Save to", "fr": "Enregistrer dans", "de": "Speichern unter",
+        "es": "Guardar en", "fi": "Tallenna kansioon", "it": "Salva in",
+        "nb_NO": "Lagre i",
+    },
+    "Where to save incoming files": {
+        "en": "Where to save incoming files",
+        "fr": "Où enregistrer les fichiers reçus",
+        "de": "Wohin eingehende Dateien gespeichert werden",
+        "es": "Dónde guardar los archivos recibidos",
+        "fi": "Mihin saapuvat tiedostot tallennetaan",
+        "it": "Dove salvare i file ricevuti",
+        "nb_NO": "Hvor innkommende filer skal lagres",
+    },
+    "A folder per sender": {
+        "en": "A folder per sender", "fr": "Un dossier par expéditeur",
+        "de": "Ein Ordner je Absender", "es": "Una carpeta por remitente",
+        "fi": "Oma kansio kullekin lähettäjälle",
+        "it": "Una cartella per mittente", "nb_NO": "En mappe per avsender",
+    },
+    "Received files go into a subfolder named after the device that sent them.": {
+        "en": "Received files go into a subfolder named after the device that sent them.",
+        "fr": "Les fichiers reçus vont dans un sous-dossier au nom de l'appareil expéditeur.",
+        "de": "Empfangene Dateien landen in einem Unterordner mit dem Namen des Absendergeräts.",
+        "es": "Los archivos recibidos van a una subcarpeta con el nombre del dispositivo que los envió.",
+        "fi": "Vastaanotetut tiedostot menevät alikansioon, joka on nimetty lähettäneen laitteen mukaan.",
+        "it": "I file ricevuti finiscono in una sottocartella con il nome del dispositivo che li ha inviati.",
+        "nb_NO": "Mottatte filer havner i en undermappe oppkalt etter enheten som sendte dem.",
+    },
+    "While transferring": {
+        "en": "While transferring", "fr": "Pendant les transferts",
+        "de": "Während der Übertragung", "es": "Durante las transferencias",
+        "fi": "Siirron aikana", "it": "Durante i trasferimenti",
+        "nb_NO": "Under overføring",
+    },
+    "Notify me": {
+        "en": "Notify me", "fr": "Me notifier", "de": "Benachrichtigen",
+        "es": "Avisarme", "fi": "Ilmoita minulle", "it": "Avvisami",
+        "nb_NO": "Varsle meg",
+    },
+    "A notification when a transfer arrives or finishes in the background.": {
+        "en": "A notification when a transfer arrives or finishes in the background.",
+        "fr": "Une notification lorsqu'un transfert arrive ou se termine en arrière-plan.",
+        "de": "Eine Benachrichtigung, wenn im Hintergrund eine Übertragung eintrifft oder endet.",
+        "es": "Una notificación cuando una transferencia llega o termina en segundo plano.",
+        "fi": "Ilmoitus, kun siirto saapuu tai päättyy taustalla.",
+        "it": "Una notifica quando un trasferimento arriva o finisce in secondo piano.",
+        "nb_NO": "Et varsel når en overføring kommer eller blir ferdig i bakgrunnen.",
+    },
+    "Keep going with the screen off": {
+        "en": "Keep going with the screen off",
+        "fr": "Continuer écran éteint",
+        "de": "Bei ausgeschaltetem Bildschirm weiterlaufen",
+        "es": "Continuar con la pantalla apagada",
+        "fi": "Jatka näytön ollessa sammuksissa",
+        "it": "Continua a schermo spento",
+        "nb_NO": "Fortsett med skjermen av",
+    },
+    "Stops the device suspending mid-transfer. Uses more battery.": {
+        "en": "Stops the device suspending mid-transfer. Uses more battery.",
+        "fr": "Empêche la mise en veille en plein transfert. Consomme plus de batterie.",
+        "de": "Verhindert, dass das Gerät mitten in einer Übertragung schlafen geht. Braucht mehr Akku.",
+        "es": "Evita que el dispositivo se suspenda a mitad de una transferencia. Gasta más batería.",
+        "fi": "Estää laitetta siirtymästä lepotilaan kesken siirron. Kuluttaa enemmän akkua.",
+        "it": "Impedisce al dispositivo di sospendersi durante un trasferimento. Consuma più batteria.",
+        "nb_NO": "Hindrer at enheten går i dvale midt i en overføring. Bruker mer batteri.",
+    },
+    "Keep a history": {
+        "en": "Keep a history", "fr": "Conserver un historique",
+        "de": "Verlauf führen", "es": "Guardar un historial",
+        "fi": "Pidä historiaa", "it": "Conserva una cronologia",
+        "nb_NO": "Før en historikk",
+    },
+    "Records what was sent and received, and where it was saved.": {
+        "en": "Records what was sent and received, and where it was saved.",
+        "fr": "Note ce qui a été envoyé et reçu, et où cela a été enregistré.",
+        "de": "Hält fest, was gesendet und empfangen wurde und wo es gespeichert ist.",
+        "es": "Anota lo que se envió y se recibió, y dónde se guardó.",
+        "fi": "Kirjaa mitä lähetettiin ja vastaanotettiin ja minne se tallennettiin.",
+        "it": "Registra che cosa è stato inviato e ricevuto, e dove è stato salvato.",
+        "nb_NO": "Noterer hva som ble sendt og mottatt, og hvor det ble lagret.",
+    },
+    "Language": {
+        "en": "Language", "fr": "Langue", "de": "Sprache", "es": "Idioma",
+        "fi": "Kieli", "it": "Lingua", "nb_NO": "Språk",
+    },
+    "Interface language": {
+        "en": "Interface language", "fr": "Langue de l'interface",
+        "de": "Sprache der Oberfläche", "es": "Idioma de la interfaz",
+        "fi": "Käyttöliittymän kieli", "it": "Lingua dell'interfaccia",
+        "nb_NO": "Grensesnittspråk",
+    },
+    "The app reloads when this changes.": {
+        "en": "The app reloads when this changes.",
+        "fr": "L'application se recharge lors du changement.",
+        "de": "Die App lädt bei einer Änderung neu.",
+        "es": "La aplicación se recarga al cambiarlo.",
+        "fi": "Sovellus latautuu uudelleen, kun tämä muuttuu.",
+        "it": "L'applicazione si ricarica quando questo cambia.",
+        "nb_NO": "Appen lastes på nytt når dette endres.",
+    },
+
+    # --- about ----------------------------------------------------------------
+    "Version": {
+        "en": "Version", "fr": "Version", "de": "Version", "es": "Versión",
+        "fi": "Versio", "it": "Versione", "nb_NO": "Versjon",
+    },
+    "Protocol": {
+        "en": "Protocol", "fr": "Protocole", "de": "Protokoll",
+        "es": "Protocolo", "fi": "Protokolla", "it": "Protocollo",
+        "nb_NO": "Protokoll",
+    },
+    "LocalSend v%1": {
+        "en": "LocalSend v%1", "fr": "LocalSend v%1", "de": "LocalSend v%1",
+        "es": "LocalSend v%1", "fi": "LocalSend v%1", "it": "LocalSend v%1",
+        "nb_NO": "LocalSend v%1",
+    },
+    "Good to know": {
+        "en": "Good to know", "fr": "Bon à savoir", "de": "Gut zu wissen",
+        "es": "Conviene saber", "fi": "Hyvä tietää", "it": "Da sapere",
+        "nb_NO": "Verdt å vite",
+    },
+    "Links": {
+        "en": "Links", "fr": "Liens", "de": "Links", "es": "Enlaces",
+        "fi": "Linkit", "it": "Collegamenti", "nb_NO": "Lenker",
+    },
+    "Source and issues": {
+        "en": "Source and issues", "fr": "Code source et signalements",
+        "de": "Quellcode und Fehlermeldungen", "es": "Código y problemas",
+        "fi": "Lähdekoodi ja virheraportit", "it": "Codice e segnalazioni",
+        "nb_NO": "Kildekode og feilmeldinger",
+    },
+    "The LocalSend project": {
+        "en": "The LocalSend project", "fr": "Le projet LocalSend",
+        "de": "Das LocalSend-Projekt", "es": "El proyecto LocalSend",
+        "fi": "LocalSend-projekti", "it": "Il progetto LocalSend",
+        "nb_NO": "LocalSend-prosjektet",
+    },
+    "An unofficial LocalSend client for Sailfish OS. Files go straight from one device to the other over your own network — no account, no server, no Internet connection needed.": {
+        "en": "An unofficial LocalSend client for Sailfish OS. Files go straight from one device to the other over your own network — no account, no server, no Internet connection needed.",
+        "fr": "Un client LocalSend non officiel pour Sailfish OS. Les fichiers passent directement d'un appareil à l'autre sur votre propre réseau — sans compte, sans serveur, sans connexion Internet.",
+        "de": "Ein inoffizieller LocalSend-Client für Sailfish OS. Dateien gehen direkt von einem Gerät zum anderen über Ihr eigenes Netz — ohne Konto, ohne Server, ohne Internetverbindung.",
+        "es": "Un cliente LocalSend no oficial para Sailfish OS. Los archivos van directos de un dispositivo a otro por tu propia red: sin cuenta, sin servidor, sin conexión a Internet.",
+        "fi": "Epävirallinen LocalSend-asiakasohjelma Sailfish OS:lle. Tiedostot siirtyvät suoraan laitteelta toiselle omassa verkossasi — ilman tiliä, palvelinta tai internetyhteyttä.",
+        "it": "Un client LocalSend non ufficiale per Sailfish OS. I file passano direttamente da un dispositivo all'altro sulla tua rete — senza account, senza server, senza connessione a Internet.",
+        "nb_NO": "En uoffisiell LocalSend-klient for Sailfish OS. Filer går rett fra én enhet til en annen over ditt eget nettverk — uten konto, uten server, uten internettforbindelse.",
+    },
+    "Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.": {
+        "en": "Transfers use plain HTTP on port %1. The encrypted transport that the desktop and mobile apps offer is not implemented here yet, so treat a transfer as visible to anyone who can watch the network. On a home or personal hotspot that is nobody; on café or office Wi-Fi it may not be.",
+        "fr": "Les transferts utilisent HTTP en clair sur le port %1. Le transport chiffré des applications de bureau et mobiles n'est pas encore implémenté ici : considérez qu'un transfert est visible par quiconque peut observer le réseau. Chez vous ou sur votre partage de connexion, cela ne concerne personne ; sur le Wi-Fi d'un café ou d'un bureau, peut-être si.",
+        "de": "Übertragungen laufen über unverschlüsseltes HTTP auf Port %1. Der verschlüsselte Transport der Desktop- und Mobil-Apps ist hier noch nicht umgesetzt: Gehen Sie davon aus, dass eine Übertragung für jeden sichtbar ist, der das Netz mitlesen kann. Zu Hause oder am eigenen Hotspot ist das niemand, im Café- oder Büro-WLAN womöglich schon.",
+        "es": "Las transferencias usan HTTP sin cifrar en el puerto %1. El transporte cifrado de las aplicaciones de escritorio y móviles todavía no está implementado aquí, así que da por hecho que una transferencia es visible para quien pueda observar la red. En casa o en tu propio punto de acceso no es nadie; en el wifi de una cafetería o una oficina puede que sí.",
+        "fi": "Siirrot käyttävät salaamatonta HTTP:tä portissa %1. Työpöytä- ja mobiilisovellusten salattua siirtotapaa ei ole vielä toteutettu tässä, joten oleta siirron näkyvän kenelle tahansa, joka voi seurata verkkoa. Kotona tai omassa jakoyhteydessä se ei ole kukaan; kahvilan tai toimiston wifissä ehkä on.",
+        "it": "I trasferimenti usano HTTP in chiaro sulla porta %1. Il trasporto cifrato offerto dalle applicazioni desktop e mobili non è ancora implementato qui: considera un trasferimento visibile a chiunque possa osservare la rete. A casa o sul proprio hotspot non è nessuno; sul Wi-Fi di un bar o di un ufficio potrebbe esserlo.",
+        "nb_NO": "Overføringer bruker ukryptert HTTP på port %1. Den krypterte transporten som skrivebords- og mobilappene tilbyr, er ikke implementert her ennå, så gå ut fra at en overføring er synlig for alle som kan følge med på nettverket. Hjemme eller på ditt eget delte nett er det ingen; på kafé- eller kontor-wifi kan det være noen.",
+    },
+    "Devices find each other with multicast. Plenty of networks block it — guest Wi-Fi almost always does. When that happens, Scan network on the main page finds them the slow way instead.": {
+        "en": "Devices find each other with multicast. Plenty of networks block it — guest Wi-Fi almost always does. When that happens, Scan network on the main page finds them the slow way instead.",
+        "fr": "Les appareils se trouvent par multicast. Beaucoup de réseaux le bloquent — le Wi-Fi invité presque toujours. Dans ce cas, Balayer le réseau depuis l'écran principal les trouve par la méthode lente.",
+        "de": "Geräte finden einander per Multicast. Viele Netze blockieren das — Gäste-WLAN fast immer. Dann findet Netz absuchen auf der Hauptseite sie stattdessen auf dem langsamen Weg.",
+        "es": "Los dispositivos se encuentran por multidifusión. Muchas redes la bloquean, y el wifi de invitados casi siempre. Cuando pasa, Explorar la red desde la pantalla principal los encuentra por la vía lenta.",
+        "fi": "Laitteet löytävät toisensa multicastilla. Monet verkot estävät sen — vierasverkko lähes aina. Silloin päänäkymän Etsi verkosta löytää ne hitaammalla tavalla.",
+        "it": "I dispositivi si trovano tramite multicast. Molte reti lo bloccano, e il Wi-Fi per ospiti quasi sempre. In quel caso Scansiona la rete dalla schermata principale li trova per la via lenta.",
+        "nb_NO": "Enheter finner hverandre med multicast. Mange nettverk blokkerer det — gjeste-wifi nesten alltid. Da finner Søk i nettverket på hovedsiden dem på den langsomme måten i stedet.",
+    },
+    "Not affiliated with the LocalSend project. Released under the MIT licence.": {
+        "en": "Not affiliated with the LocalSend project. Released under the MIT licence.",
+        "fr": "Sans lien avec le projet LocalSend. Distribué sous licence MIT.",
+        "de": "Nicht mit dem LocalSend-Projekt verbunden. Veröffentlicht unter der MIT-Lizenz.",
+        "es": "Sin relación con el proyecto LocalSend. Publicado con licencia MIT.",
+        "fi": "Ei yhteydessä LocalSend-projektiin. Julkaistu MIT-lisenssillä.",
+        "it": "Non affiliato al progetto LocalSend. Distribuito con licenza MIT.",
+        "nb_NO": "Ikke tilknyttet LocalSend-prosjektet. Utgitt under MIT-lisensen.",
+    },
+
+    # --- plurals ---------------------------------------------------------------
+    "%n file(s)": {
+        "en": ["%n file", "%n files"],
+        "fr": ["%n fichier", "%n fichiers"],
+        "de": ["%n Datei", "%n Dateien"],
+        "es": ["%n archivo", "%n archivos"],
+        "fi": ["%n tiedosto", "%n tiedostoa"],
+        "it": ["%n file", "%n file"],
+        "nb_NO": ["%n fil", "%n filer"],
+    },
+    "%n file(s) ready": {
+        "en": ["%n file ready", "%n files ready"],
+        "fr": ["%n fichier prêt", "%n fichiers prêts"],
+        "de": ["%n Datei bereit", "%n Dateien bereit"],
+        "es": ["%n archivo listo", "%n archivos listos"],
+        "fi": ["%n tiedosto valmiina", "%n tiedostoa valmiina"],
+        "it": ["%n file pronto", "%n file pronti"],
+        "nb_NO": ["%n fil klar", "%n filer klare"],
+    },
+    "%n file(s) received": {
+        "en": ["%n file received", "%n files received"],
+        "fr": ["%n fichier reçu", "%n fichiers reçus"],
+        "de": ["%n Datei empfangen", "%n Dateien empfangen"],
+        "es": ["%n archivo recibido", "%n archivos recibidos"],
+        "fi": ["%n tiedosto vastaanotettu", "%n tiedostoa vastaanotettu"],
+        "it": ["%n file ricevuto", "%n file ricevuti"],
+        "nb_NO": ["%n fil mottatt", "%n filer mottatt"],
+    },
+    "%n file(s) sent": {
+        "en": ["%n file sent", "%n files sent"],
+        "fr": ["%n fichier envoyé", "%n fichiers envoyés"],
+        "de": ["%n Datei gesendet", "%n Dateien gesendet"],
+        "es": ["%n archivo enviado", "%n archivos enviados"],
+        "fi": ["%n tiedosto lähetetty", "%n tiedostoa lähetetty"],
+        "it": ["%n file inviato", "%n file inviati"],
+        "nb_NO": ["%n fil sendt", "%n filer sendt"],
+    },
+    "Saved %n file(s)": {
+        "en": ["Saved %n file", "Saved %n files"],
+        "fr": ["%n fichier enregistré", "%n fichiers enregistrés"],
+        "de": ["%n Datei gespeichert", "%n Dateien gespeichert"],
+        "es": ["Se guardó %n archivo", "Se guardaron %n archivos"],
+        "fi": ["Tallennettiin %n tiedosto", "Tallennettiin %n tiedostoa"],
+        "it": ["Salvato %n file", "Salvati %n file"],
+        "nb_NO": ["Lagret %n fil", "Lagret %n filer"],
+    },
+    "Sent %n file(s)": {
+        "en": ["Sent %n file", "Sent %n files"],
+        "fr": ["%n fichier envoyé", "%n fichiers envoyés"],
+        "de": ["%n Datei gesendet", "%n Dateien gesendet"],
+        "es": ["Se envió %n archivo", "Se enviaron %n archivos"],
+        "fi": ["Lähetettiin %n tiedosto", "Lähetettiin %n tiedostoa"],
+        "it": ["Inviato %n file", "Inviati %n file"],
+        "nb_NO": ["Sendte %n fil", "Sendte %n filer"],
+    },
+    "%n transfer(s)": {
+        "en": ["%n transfer", "%n transfers"],
+        "fr": ["%n transfert", "%n transferts"],
+        "de": ["%n Übertragung", "%n Übertragungen"],
+        "es": ["%n transferencia", "%n transferencias"],
+        "fi": ["%n siirto", "%n siirtoa"],
+        "it": ["%n trasferimento", "%n trasferimenti"],
+        "nb_NO": ["%n overføring", "%n overføringer"],
+    },
+    "%n nearby": {
+        "en": ["%n nearby", "%n nearby"],
+        "fr": ["%n à proximité", "%n à proximité"],
+        "de": ["%n in der Nähe", "%n in der Nähe"],
+        "es": ["%n cerca", "%n cerca"],
+        "fi": ["%n lähellä", "%n lähellä"],
+        "it": ["%n nelle vicinanze", "%n nelle vicinanze"],
+        "nb_NO": ["%n i nærheten", "%n i nærheten"],
+    },
+    "No devices": {
+        "en": "No devices", "fr": "Aucun appareil", "de": "Keine Geräte",
+        "es": "Sin dispositivos", "fi": "Ei laitteita", "it": "Nessun dispositivo",
+        "nb_NO": "Ingen enheter",
+    },
+}
+
+
+def strip_comments(text):
+    return LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", text))
+
+
+def unescape_qml(source):
+    return (source.replace("\\n", "\n").replace("\\t", "\t")
+                  .replace("\\r", "\r").replace('\\"', '"')
+                  .replace("\\\\", "\\"))
+
+
+def collect():
+    """context -> sorted list of source strings, read from the QML."""
+    contexts = {}
+    for path in sorted(QML_DIR.rglob("*.qml")):
+        text = strip_comments(path.read_text(encoding="utf-8"))
+        sources = sorted(set(unescape_qml(s) for s in QSTR.findall(text)))
+        if sources:
+            contexts[path.stem] = sources
+    return contexts
+
+
+def render(locale, contexts):
+    lines = ['<?xml version="1.0" encoding="utf-8"?>',
+             "<!DOCTYPE TS>",
+             f'<TS version="2.1" language="{locale}">']
+
+    for context in sorted(contexts):
+        lines.append("<context>")
+        lines.append(f"    <name>{escape(context)}</name>")
+
+        for source in contexts[context]:
+            translation = TRANSLATIONS[source][locale]
+            plural = isinstance(translation, list)
+
+            lines.append('    <message numerus="yes">' if plural
+                         else "    <message>")
+            lines.append(f"        <source>{escape(source)}</source>")
+
+            if plural:
+                lines.append("        <translation>")
+                for form in translation:
+                    lines.append(f"            <numerusform>{escape(form)}"
+                                 "</numerusform>")
+                lines.append("        </translation>")
+            else:
+                lines.append(f"        <translation>{escape(translation)}"
+                             "</translation>")
+
+            lines.append("    </message>")
+
+        lines.append("</context>")
+
+    lines.append("</TS>")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def main():
+    contexts = collect()
+
+    wanted = set()
+    for sources in contexts.values():
+        wanted.update(sources)
+
+    missing = sorted(wanted - set(TRANSLATIONS))
+    if missing:
+        print("No translation for:")
+        for source in missing:
+            print(f"    {source}")
+        return 1
+
+    unused = sorted(set(TRANSLATIONS) - wanted)
+    if unused:
+        print("In the table but used by no QML file:")
+        for source in unused:
+            print(f"    {source}")
+        return 1
+
+    for locale in LOCALES:
+        for source, forms in TRANSLATIONS.items():
+            if locale not in forms:
+                print(f"{source!r} has no {locale} translation")
+                return 1
+
+    TS_DIR.mkdir(exist_ok=True)
+    for locale in LOCALES:
+        path = TS_DIR / f"harbour-localsend-{locale}.ts"
+        path.write_text(render(locale, contexts), encoding="utf-8")
+        print(f"wrote {path.relative_to(ROOT)}")
+
+    print(f"\n{len(wanted)} strings, {len(contexts)} contexts, "
+          f"{len(LOCALES)} locales")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

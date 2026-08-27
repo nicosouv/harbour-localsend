@@ -1,0 +1,59 @@
+# Local mirror of the CI lanes, so a failure here is a failure there.
+#
+#   docker compose run --rm tests     # build + ctest
+#   docker compose run --rm syntax    # compile-check all of src/
+#   docker compose run --rm qmllint   # parse every QML file
+#   docker compose run --rm checks    # the static checks in scripts/
+#
+# The build tree lives at /build inside the container rather than in the
+# mounted source, so no root-owned artifacts land in the repository.
+
+services:
+  tests:
+    build: ./tests
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: >
+      bash -c "cmake -S tests -B /build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      && cmake --build /build
+      && QT_QPA_PLATFORM=offscreen ctest --test-dir /build --output-on-failure"
+
+  syntax:
+    build: ./tests
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: bash tests/syntax-check.sh
+
+  # qmllint parses without resolving imports, so Silica's absence here is fine:
+  # it still catches every syntax error and unterminated block.
+  qmllint:
+    build: ./tests
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: bash -c "find qml -name '*.qml' -print0 | xargs -0 qmllint"
+
+  # The rules a compiler has nothing to say about: Qt 5.6 compatibility,
+  # QML traps, and translation catalogues drifting from the sources.
+  checks:
+    build: ./tests
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: >
+      bash -c "python3 scripts/check_qt56.py
+      && python3 scripts/check_qml.py
+      && python3 scripts/check_translations.py"
+
+  # App icon: renders the artwork at every size the RPM ships. Run when the
+  # icon changes, not as part of any build.
+  icons:
+    image: python:3.12-slim
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: >
+      bash -c "pip install --quiet --no-cache-dir pillow
+      && python3 scripts/make_icons.py"

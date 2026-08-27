@@ -1,0 +1,466 @@
+#include "discovery.h"
+
+#include <QHostAddress>
+#include <QJsonDocument>
+#include <QNetworkAccessManager>
+#include <QNetworkInterface>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTimer>
+#include <QUdpSocket>
+#include <QUrl>
+
+#include "appsettings.h"
+#include "devicemodel.h"
+#include "protocol.h"
+
+namespace {
+
+// Peers answer our announcements, so our own cadence is what keeps their
+// entries fresh. Slow enough to be invisible on a battery, fast enough that
+// a device that just joined shows up while somebody is still looking.
+const int AnnounceIntervalMs = 20 * 1000;
+
+// Two missed rounds plus slack. Anything quieter than this is gone.
+const int DeviceMaxAgeSeconds = 70;
+
+// The subnet sweep, sized for a phone: enough sockets in flight to finish a
+// /24 in well under a minute, few enough not to swamp the Wi-Fi chip.
+const int ScanWindow = 24;
+const int ScanTimeoutMs = 1500;
+const int RegisterTimeoutMs = 3000;
+
+} // namespace
+
+Discovery::Discovery(AppSettings *settings, DeviceModel *devices,
+                     QNetworkAccessManager *network, QObject *parent)
+    : QObject(parent)
+    , m_settings(settings)
+    , m_devices(devices)
+    , m_network(network)
+    , m_socket(0)
+    , m_announceTimer(new QTimer(this))
+    , m_running(false)
+    , m_scanTotal(0)
+    , m_scanDone(0)
+    , m_scanInFlight(0)
+    , m_scanning(false)
+{
+    m_announceTimer->setInterval(AnnounceIntervalMs);
+    connect(m_announceTimer, &QTimer::timeout, this, &Discovery::announce);
+    connect(m_devices, &DeviceModel::deviceAppeared,
+            this, &Discovery::deviceAppeared);
+}
+
+bool Discovery::isRunning() const { return m_running; }
+bool Discovery::isScanning() const { return m_scanning; }
+
+bool Discovery::multicastReady() const
+{
+    return m_running && !m_joinedInterfaces.isEmpty();
+}
+
+int Discovery::scanProgress() const
+{
+    if (!m_scanning || m_scanTotal <= 0)
+        return 0;
+    return (m_scanDone * 100) / m_scanTotal;
+}
+
+QString Discovery::localAddress() const
+{
+    const QStringList addresses = localAddresses();
+    return addresses.isEmpty() ? QString() : addresses.first();
+}
+
+QStringList Discovery::localAddresses() const
+{
+    QStringList result;
+    const QList<QHostAddress> all = QNetworkInterface::allAddresses();
+    for (int i = 0; i < all.count(); ++i) {
+        const QHostAddress &address = all.at(i);
+        if (address.protocol() != QAbstractSocket::IPv4Protocol)
+            continue;
+        if (address.isLoopback())
+            continue;
+        result.append(address.toString());
+    }
+    return result;
+}
+
+void Discovery::start()
+{
+    if (m_running)
+        return;
+
+    if (!bindSocket()) {
+        // Without the socket we can still be found - the HTTP server is up and
+        // peers can register with us - so this is a degraded mode, not a
+        // failure. The UI offers the manual sweep instead.
+        m_running = true;
+        m_announceTimer->start();
+        emit runningChanged();
+        return;
+    }
+
+    m_running = true;
+    joinGroups();
+    m_announceTimer->start();
+    emit runningChanged();
+
+    // A burst rather than a single packet: multicast is unreliable by design,
+    // and the first seconds after launch are when somebody is watching.
+    announce();
+    QTimer::singleShot(700, this, SLOT(announce()));
+    QTimer::singleShot(2500, this, SLOT(announce()));
+}
+
+void Discovery::stop()
+{
+    if (!m_running)
+        return;
+
+    m_announceTimer->stop();
+    if (m_socket) {
+        m_socket->close();
+        m_socket->deleteLater();
+        m_socket = 0;
+    }
+    m_joinedInterfaces.clear();
+    m_running = false;
+
+    // Without our announcements nothing refreshes these, so they would sit
+    // there looking live while every one of them slowly went stale.
+    m_devices->clear();
+
+    emit runningChanged();
+}
+
+bool Discovery::bindSocket()
+{
+    if (m_socket) {
+        m_socket->close();
+        m_socket->deleteLater();
+    }
+
+    m_socket = new QUdpSocket(this);
+    connect(m_socket, &QUdpSocket::readyRead, this, &Discovery::readDatagrams);
+
+    // ShareAddress is what lets a second LocalSend implementation on the same
+    // handset coexist with us, and what lets us restart without waiting out
+    // the socket's cooldown.
+    const bool bound = m_socket->bind(QHostAddress::AnyIPv4, quint16(Protocol::DefaultPort),
+                                      QUdpSocket::ShareAddress
+                                      | QUdpSocket::ReuseAddressHint);
+    if (!bound) {
+        m_socket->deleteLater();
+        m_socket = 0;
+        return false;
+    }
+    return true;
+}
+
+void Discovery::joinGroups()
+{
+    if (!m_socket)
+        return;
+
+    const QHostAddress group(QString::fromLatin1(Protocol::MulticastAddress));
+    const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
+
+    for (int i = 0; i < interfaces.count(); ++i) {
+        const QNetworkInterface &interface = interfaces.at(i);
+        const QNetworkInterface::InterfaceFlags flags = interface.flags();
+
+        if (!flags.testFlag(QNetworkInterface::IsUp)
+                || !flags.testFlag(QNetworkInterface::IsRunning)
+                || !flags.testFlag(QNetworkInterface::CanMulticast)
+                || flags.testFlag(QNetworkInterface::IsLoopBack)) {
+            continue;
+        }
+
+        // Joining twice is harmless and returns false, so the set is only an
+        // optimisation - what matters is that a Wi-Fi reconnect gets picked
+        // up on the next round without any network-change plumbing.
+        if (m_joinedInterfaces.contains(interface.index()))
+            continue;
+        if (m_socket->joinMulticastGroup(group, interface))
+            m_joinedInterfaces.insert(interface.index());
+    }
+}
+
+void Discovery::announce()
+{
+    joinGroups();
+    sendAnnouncement(true);
+    m_devices->prune(DeviceMaxAgeSeconds);
+}
+
+void Discovery::refresh()
+{
+    if (!m_running)
+        start();
+    else
+        announce();
+}
+
+void Discovery::sendAnnouncement(bool announcing)
+{
+    if (!m_socket)
+        return;
+
+    const QByteArray payload = QJsonDocument(
+        m_settings->self().toAnnouncement(announcing)).toJson(QJsonDocument::Compact);
+    const QHostAddress group(QString::fromLatin1(Protocol::MulticastAddress));
+
+    // One write per interface. A phone routinely holds Wi-Fi plus a tethering
+    // interface, and the socket's default outgoing interface is whichever one
+    // the routing table happens to prefer - which is not always the one the
+    // other device is on.
+    const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
+    bool sentAny = false;
+
+    for (int i = 0; i < interfaces.count(); ++i) {
+        const QNetworkInterface &interface = interfaces.at(i);
+        if (!m_joinedInterfaces.contains(interface.index()))
+            continue;
+        m_socket->setMulticastInterface(interface);
+        if (m_socket->writeDatagram(payload, group, quint16(Protocol::DefaultPort)) > 0)
+            sentAny = true;
+    }
+
+    if (!sentAny)
+        m_socket->writeDatagram(payload, group, quint16(Protocol::DefaultPort));
+}
+
+void Discovery::readDatagrams()
+{
+    if (!m_socket)
+        return;
+
+    while (m_socket->hasPendingDatagrams()) {
+        QByteArray datagram;
+        datagram.resize(int(m_socket->pendingDatagramSize()));
+        QHostAddress sender;
+        quint16 senderPort = 0;
+        const qint64 read = m_socket->readDatagram(datagram.data(), datagram.size(),
+                                                   &sender, &senderPort);
+        if (read <= 0)
+            continue;
+        datagram.truncate(int(read));
+
+        const QJsonDocument document = QJsonDocument::fromJson(datagram);
+        if (!document.isObject())
+            continue;
+
+        QString address = sender.toString();
+        if (address.startsWith(QLatin1String("::ffff:")))
+            address = address.mid(7);
+
+        handlePayload(document.object(), address);
+    }
+}
+
+void Discovery::handlePayload(const QJsonObject &payload, const QString &address)
+{
+    DeviceInfo peer = DeviceInfo::fromPayload(payload);
+    if (!peer.isValid())
+        return;
+
+    // Our own announcement, looped back by the multicast group. Filtering on
+    // the address instead would break the moment two apps share a handset.
+    if (peer.fingerprint == m_settings->fingerprint())
+        return;
+
+    peer.address = address;
+    m_devices->upsert(peer);
+
+    if (payload.value(QStringLiteral("announce")).toBool(false))
+        respondTo(peer);
+}
+
+void Discovery::respondTo(const DeviceInfo &peer)
+{
+    if (m_socket) {
+        // Unicast, straight back to the announcer's discovery port. announce
+        // is false so this cannot start a reply loop.
+        const QByteArray payload = QJsonDocument(
+            m_settings->self().toAnnouncement(false)).toJson(QJsonDocument::Compact);
+        m_socket->writeDatagram(payload, QHostAddress(peer.address),
+                                quint16(Protocol::DefaultPort));
+    }
+
+    postRegister(peer);
+}
+
+void Discovery::postRegister(const DeviceInfo &peer)
+{
+    if (peer.address.isEmpty())
+        return;
+
+    QNetworkRequest request(QUrl(peer.apiBase() + QLatin1String(Protocol::PathRegister)));
+    request.setHeader(QNetworkRequest::ContentTypeHeader,
+                      QStringLiteral("application/json"));
+
+    const QByteArray body = QJsonDocument(
+        m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = m_network->post(request, body);
+    connect(reply, &QNetworkReply::finished, this, &Discovery::onRegisterFinished);
+    QTimer::singleShot(RegisterTimeoutMs, reply, SLOT(abort()));
+}
+
+void Discovery::onRegisterFinished()
+{
+    QNetworkReply *reply = qobject_cast<QNetworkReply *>(sender());
+    if (!reply)
+        return;
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError)
+        return;
+
+    const QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
+    if (!document.isObject())
+        return;
+
+    DeviceInfo peer = DeviceInfo::fromPayload(document.object());
+    if (!peer.isValid() || peer.fingerprint == m_settings->fingerprint())
+        return;
+
+    // The response omits the transport details, so they come from the URL we
+    // reached rather than from the body.
+    peer.address = reply->url().host();
+    if (peer.port <= 0)
+        peer.port = reply->url().port(Protocol::DefaultPort);
+    m_devices->upsert(peer);
+}
+
+DeviceInfo Discovery::registerPeer(const QJsonObject &payload, const QString &address)
+{
+    DeviceInfo peer = DeviceInfo::fromPayload(payload);
+    if (peer.isValid() && peer.fingerprint != m_settings->fingerprint()) {
+        peer.address = address;
+        m_devices->upsert(peer);
+    }
+    return m_settings->self();
+}
+
+// --- subnet sweep --------------------------------------------------------
+
+void Discovery::scanSubnet()
+{
+    if (m_scanning)
+        return;
+
+    m_scanQueue.clear();
+
+    const QStringList mine = localAddresses();
+    QStringList prefixes;
+    for (int i = 0; i < mine.count(); ++i) {
+        const int lastDot = mine.at(i).lastIndexOf(QLatin1Char('.'));
+        if (lastDot <= 0)
+            continue;
+        const QString prefix = mine.at(i).left(lastDot + 1);
+        if (!prefixes.contains(prefix))
+            prefixes.append(prefix);
+    }
+
+    // A /24 around each of our own addresses. Wider prefixes exist, but a /16
+    // sweep is 65k requests, which is not a feature: it is a denial of
+    // service against the person's own router.
+    for (int p = 0; p < prefixes.count(); ++p) {
+        for (int host = 1; host <= 254; ++host) {
+            const QString address = prefixes.at(p) + QString::number(host);
+            if (!mine.contains(address))
+                m_scanQueue.append(address);
+        }
+    }
+
+    if (m_scanQueue.isEmpty())
+        return;
+
+    m_scanTotal = m_scanQueue.count();
+    m_scanDone = 0;
+    m_scanInFlight = 0;
+    m_scanning = true;
+    emit scanningChanged();
+
+    pumpScanQueue();
+}
+
+void Discovery::pumpScanQueue()
+{
+    while (m_scanning && m_scanInFlight < ScanWindow && !m_scanQueue.isEmpty()) {
+        const QString address = m_scanQueue.takeFirst();
+
+        QUrl url;
+        url.setScheme(QStringLiteral("http"));
+        url.setHost(address);
+        url.setPort(m_settings->port());
+        url.setPath(QLatin1String(Protocol::ApiPrefix)
+                    + QLatin1String(Protocol::PathRegister));
+
+        QNetworkRequest request(url);
+        request.setHeader(QNetworkRequest::ContentTypeHeader,
+                          QStringLiteral("application/json"));
+
+        const QByteArray body = QJsonDocument(
+            m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
+
+        QNetworkReply *reply = m_network->post(request, body);
+        connect(reply, &QNetworkReply::finished, this, &Discovery::onScanReplyFinished);
+        QTimer::singleShot(ScanTimeoutMs, reply, SLOT(abort()));
+        ++m_scanInFlight;
+    }
+
+    if (m_scanning && m_scanQueue.isEmpty() && m_scanInFlight == 0)
+        finishScan();
+}
+
+void Discovery::onScanReplyFinished()
+{
+    QNetworkReply *reply = qobject_cast<QNetworkReply *>(sender());
+    if (!reply)
+        return;
+    reply->deleteLater();
+
+    --m_scanInFlight;
+    ++m_scanDone;
+
+    if (reply->error() == QNetworkReply::NoError) {
+        const QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
+        if (document.isObject()) {
+            DeviceInfo peer = DeviceInfo::fromPayload(document.object());
+            if (peer.isValid() && peer.fingerprint != m_settings->fingerprint()) {
+                peer.address = reply->url().host();
+                if (peer.port <= 0)
+                    peer.port = reply->url().port(Protocol::DefaultPort);
+                m_devices->upsert(peer);
+            }
+        }
+    }
+
+    // The percentage moves a lot; the UI reads it from a property that only
+    // changes on this signal, so emitting per reply is exactly right.
+    emit scanningChanged();
+    pumpScanQueue();
+}
+
+void Discovery::cancelScan()
+{
+    if (!m_scanning)
+        return;
+    m_scanQueue.clear();
+    // Replies already in flight run to their timeout and settle the counter.
+    if (m_scanInFlight == 0)
+        finishScan();
+}
+
+void Discovery::finishScan()
+{
+    m_scanning = false;
+    m_scanTotal = 0;
+    m_scanDone = 0;
+    emit scanningChanged();
+}

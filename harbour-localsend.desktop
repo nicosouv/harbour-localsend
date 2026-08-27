@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Name=LocalSend
+Icon=harbour-localsend
+Exec=harbour-localsend
+Comment=Send files over your local network
+Categories=Network;FileTransfer;
+
+[X-Sailjail]
+# Internet covers the LAN sockets the whole app is built on: the multicast
+# announcements, the listening HTTP server and the outgoing uploads. The rest
+# are the folders files are read from and written to - a transfer app that
+# cannot reach the user's own directories has nothing to send.
+Permissions=Internet;Documents;Downloads;Pictures;Videos;Music;RemovableMedia
+OrganizationName=harbour-localsend
+ApplicationName=harbour-localsend

@@ -1,0 +1,93 @@
+name: PR Build Check
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  SAILFISH_RELEASE: '4.5.0.18'
+
+jobs:
+  checks:
+    name: Static checks
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev qtbase5-dev-tools qtdeclarative5-dev \
+            qtdeclarative5-dev-tools qt5-qmake make g++ pkg-config
+
+      - name: Qt 5.6 compatibility, QML traps, translation drift
+        run: |
+          python3 scripts/check_qt56.py
+          python3 scripts/check_qml.py
+          python3 scripts/check_translations.py
+
+      - name: Compile-check every source file
+        run: bash tests/syntax-check.sh
+
+      - name: Parse every QML file
+        run: find qml -name '*.qml' -print0 | xargs -0 qmllint
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev qtbase5-dev-tools qt5-qmake cmake ninja-build g++
+
+      - name: Build tests
+        run: cmake -S tests -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build
+
+      - name: Run tests
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+
+  build-check:
+    name: Build Check - ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    needs: [checks]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - armv7hl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build RPM for Sailfish OS
+        uses: R1tschY/sailfish-build-rpm@v1
+        with:
+          arch: ${{ matrix.arch }}
+          release: ${{ env.SAILFISH_RELEASE }}
+          fix-version: false
+          check: true
+
+      - name: Check for RPM
+        run: |
+          if ls RPMS/*.rpm >/dev/null 2>&1; then
+            echo "Build successful"
+            ls -lh RPMS/
+          else
+            echo "Build failed - no RPM found"
+            exit 1
+          fi
