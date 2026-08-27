@@ -146,9 +146,10 @@ are justified line by line in `harbour-localsend.desktop`.
 | `Downloads` | Where received files are written by default. |
 | `Documents`, `Pictures`, `Videos`, `Music` | Un-blacklists each directory so the picker can read from it. |
 | `RemovableMedia` | Base sets `disable-mnt`, which hides the SD card. |
+| `MediaIndexing` | Talk to Tracker. The picker's Documents/Images/Videos/Music/Downloads tabs are all tracker-backed and come up empty without it. |
 
-Deliberately not requested: `MediaIndexing`, `Sharing`, and `UserDirs` — the
-last of which would bundle `PublicDir` in with the five above.
+Deliberately not requested: `Sharing`, and `UserDirs` — the latter would
+bundle `PublicDir` in with the five directories above.
 
 ## Translations
 

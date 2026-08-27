@@ -27,11 +27,17 @@ Categories=Network;FileTransfer;
 #   Music           ) picker can read from, and so what can be sent.
 #   RemovableMedia  Base sets "disable-mnt", which hides the SD card. Without
 #                   it, media kept on a card can be neither sent nor saved to.
+#   MediaIndexing   Grants "dbus-user.talk org.freedesktop.Tracker3.Miner.Files".
+#                   The file picker's Documents, Images, Videos, Music and
+#                   Downloads tabs are all DocumentGalleryModel, which is
+#                   tracker-backed: without this they come up empty and only
+#                   the File System tab works. It was left out of the first
+#                   release on least-privilege grounds, which was a mistake -
+#                   it is not an optional extra, it is how files get picked.
 #
-# Deliberately absent: MediaIndexing (we never query the tracker), Sharing (we
-# register no share target), and UserDirs (it is Documents, Downloads, Music,
-# Pictures, Videos and PublicDir in one - listing the five we use leaves
-# ~/Public alone).
-Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia
+# Deliberately absent: Sharing (we register no share target) and UserDirs (it
+# is Documents, Downloads, Music, Pictures, Videos and PublicDir in one -
+# listing the five we use leaves ~/Public alone).
+Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia;MediaIndexing
 OrganizationName=harbour-localsend
 ApplicationName=harbour-localsend
