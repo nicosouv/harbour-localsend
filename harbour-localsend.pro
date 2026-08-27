@@ -8,8 +8,13 @@ QT += network
 # Qt cannot generate an X.509 certificate, and every device on a LocalSend
 # network is its own certificate authority, so the TLS identity is built
 # against OpenSSL directly. See src/certificate.cpp.
-CONFIG += link_pkgconfig
-PKGCONFIG += openssl
+#
+# Linked by name rather than through PKGCONFIG: sailfishapp.prf pulls itself
+# in the same way, and declaring link_pkgconfig here evaluates it early enough
+# that -lsailfishapp never reaches the link line. The headers are in the
+# default include path on the target, so nothing else is needed. Only
+# libcrypto is used - QSslSocket is Qt's, and no SSL_* function is called.
+LIBS += -lcrypto
 
 # Version is passed by the spec file (%qmake5 VERSION=%{version})
 isEmpty(VERSION) {
