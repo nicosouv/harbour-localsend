@@ -1,5 +1,6 @@
 #include "appsettings.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -109,6 +110,8 @@ void AppSettings::ensureIdentity()
     // not something to do quietly: the settings page says so, and so does the
     // main page.
     m_transportError = m_identity.lastError();
+    qWarning("localsend: no TLS identity (%s), falling back to plain HTTP",
+             qPrintable(m_transportError));
 }
 
 QString AppSettings::detectDeviceModel() const

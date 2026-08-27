@@ -1,5 +1,6 @@
 #include "tlsclient.h"
 
+#include <QDebug>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSslConfiguration>
@@ -58,17 +59,35 @@ void pin(QNetworkReply *reply, const QString &expectedFingerprint)
 
     QObject::connect(reply, &QNetworkReply::sslErrors, reply,
                      [reply, expectedFingerprint](const QList<QSslError> &errors) {
-        if (expectedFingerprint.isEmpty())
-            return;   // nothing to check against, so nothing is acceptable
+        if (expectedFingerprint.isEmpty()) {
+            // Nothing to check against, so nothing is acceptable.
+            qWarning("localsend: refusing %s, no fingerprint to pin against",
+                     qPrintable(reply->url().host()));
+            return;
+        }
 
         const QSslCertificate presented = presentedCertificate(reply, errors);
-        if (presented.isNull())
+        if (presented.isNull()) {
+            qWarning("localsend: refusing %s, it presented no certificate",
+                     qPrintable(reply->url().host()));
             return;
+        }
 
-        // Constant-time, for the same reason the token check is: this is a
-        // comparison against a value an attacker is trying to match.
-        if (!Crypto::equals(Certificate::fingerprintOf(presented),
-                            expectedFingerprint)) {
+        // Case-folded: the protocol text does not fix the casing of the hex,
+        // and implementations differ. Comparing byte-exact makes every peer
+        // that chose the other convention unreachable, and the symptom is a
+        // bare network error that points nowhere near the cause.
+        const QString observed = Certificate::fingerprintOf(presented);
+        if (!Crypto::equalsFold(observed, expectedFingerprint)) {
+            // Logged in full because this is the failure that otherwise
+            // surfaces as a bare "could not reach": the handshake is aborted
+            // here, the request never leaves, and nothing downstream knows
+            // why. Fingerprints are public values, announced to the whole
+            // network, so there is nothing to protect by hiding them.
+            qWarning("localsend: refusing %s, certificate fingerprint %s "
+                     "does not match the announced %s",
+                     qPrintable(reply->url().host()),
+                     qPrintable(observed), qPrintable(expectedFingerprint));
             return;
         }
 

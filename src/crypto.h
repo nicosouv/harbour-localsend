@@ -34,13 +34,29 @@ QString randomHex(int byteCount);
 bool equals(const QByteArray &left, const QByteArray &right);
 bool equals(const QString &left, const QString &right);
 
+// The same, ignoring case. For hex fingerprints, whose casing is not fixed by
+// the protocol text: the reference implementation emits uppercase, and an
+// implementation that emits lowercase is not wrong, only different. Comparing
+// them byte-exact makes every peer that chose the other convention
+// unreachable, with a network error rather than anything that points at the
+// cause.
+bool equalsFold(const QString &left, const QString &right);
+
 // PBKDF2-HMAC-SHA256. Used for the PIN, which is short enough that the work
 // factor is most of what protects it.
 QByteArray deriveKey(const QString &secret, const QByteArray &salt,
                      int iterations, int length);
 
-// SHA-256 of `data`, lowercase hex. This is the shape the LocalSend protocol
-// wants a certificate fingerprint in.
+// SHA-256 of `data` as uppercase hex.
+//
+// Uppercase because that is what the reference implementation produces and
+// therefore what peers announce and compare against:
+//
+//     sha256(der).iter().map(|byte| format!("{byte:02X}")).collect()
+//
+// Comparisons still go through equalsFold(), so a peer using the other
+// convention works too - but what we *announce* has to match the majority, or
+// implementations that pin strictly will refuse us.
 QString sha256Hex(const QByteArray &data);
 
 } // namespace Crypto

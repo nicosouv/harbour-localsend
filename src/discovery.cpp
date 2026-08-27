@@ -466,7 +466,7 @@ void Discovery::onScanReplyFinished()
             // verified against, and every later transfer to it would be
             // pinned to a fingerprint its certificate does not match.
             const bool consistent =
-                observed.isEmpty() || Crypto::equals(observed, peer.fingerprint);
+                observed.isEmpty() || Crypto::equalsFold(observed, peer.fingerprint);
 
             if (peer.isValid() && consistent
                     && peer.fingerprint != m_settings->fingerprint()) {

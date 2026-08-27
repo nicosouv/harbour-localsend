@@ -82,10 +82,19 @@ QByteArray deriveKey(const QString &secret, const QByteArray &salt,
     return ok == 1 ? key : QByteArray();
 }
 
+bool equalsFold(const QString &left, const QString &right)
+{
+    // Case is folded first and the comparison itself stays constant-time.
+    // Fingerprints are public values, so this is consistency rather than
+    // necessity, but a second comparison routine with different properties is
+    // exactly how the wrong one ends up guarding a token one day.
+    return equals(left.toUpper(), right.toUpper());
+}
+
 QString sha256Hex(const QByteArray &data)
 {
     return QString::fromLatin1(
-        QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex());
+        QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex().toUpper());
 }
 
 } // namespace Crypto

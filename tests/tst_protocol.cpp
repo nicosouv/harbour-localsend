@@ -136,10 +136,13 @@ void TestProtocol::fingerprintIsUniqueAndHex()
     QCOMPARE(first.length(), 64);
     QVERIFY(first != second);
 
+    // Uppercase, matching what the reference implementation announces and
+    // compares against. A lowercase fingerprint is refused by peers that pin
+    // strictly, and the failure shows up on their side as a dead handshake.
     for (int i = 0; i < first.length(); ++i) {
         const QChar character = first.at(i);
         QVERIFY(character.isDigit()
-                || (character >= QLatin1Char('a') && character <= QLatin1Char('f')));
+                || (character >= QLatin1Char('A') && character <= QLatin1Char('F')));
     }
 
     QVERIFY(!Protocol::generateToken().isEmpty());

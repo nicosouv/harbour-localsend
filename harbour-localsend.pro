@@ -18,7 +18,7 @@ LIBS += -lcrypto
 
 # Version is passed by the spec file (%qmake5 VERSION=%{version})
 isEmpty(VERSION) {
-    VERSION = 1.0.0
+    VERSION = 0.1.0
 }
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 

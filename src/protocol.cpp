@@ -67,8 +67,9 @@ QString generateFingerprint()
     // Only used in plain-HTTP mode. Under HTTPS the fingerprint is the
     // certificate hash and comes from Certificate, because the protocol
     // defines it that way and a peer verifies it against what we present.
-    // Same width either way, so nothing downstream can tell the difference.
-    return Crypto::randomHex(32);
+    // Same width and same casing either way, so nothing downstream can tell
+    // the difference.
+    return Crypto::randomHex(32).toUpper();
 }
 
 QString generateToken()

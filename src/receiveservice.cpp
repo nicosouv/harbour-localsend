@@ -1,6 +1,7 @@
 #include "receiveservice.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -103,6 +104,13 @@ bool ReceiveService::startListening()
     }
 
     m_listenError.clear();
+    // One line at startup that says what a peer will actually meet, because
+    // an announcement and a socket that disagree about the transport is a
+    // failure with no symptom on either side.
+    qWarning("localsend: listening on port %d over %s, fingerprint %s",
+             m_server->boundPort(),
+             m_server->isSecure() ? "https" : "http",
+             qPrintable(m_settings->fingerprint()));
     emit listeningChanged();
     return true;
 }

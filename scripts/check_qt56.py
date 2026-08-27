@@ -44,7 +44,6 @@ CPP_RULES = [
     (r"\bstartCommand\b", "Qt 5.15", "QProcess::start(program, arguments)"),
     (r"\bmoveToTrash\b", "Qt 5.15", "QFile::remove()"),
     (r"\bqEnvironmentVariableIntValue\b", "Qt 5.5", "qgetenv().toInt()"),
-    (r"\bQ_DECLARE_LOGGING_CATEGORY\b.*\bQ_LOGGING_CATEGORY\b", "n/a", "unused"),
 ]
 
 # The V4 engine in 5.6 is ES5.1. Everything below parses on a modern engine

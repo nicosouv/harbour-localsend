@@ -1,6 +1,7 @@
 #include "sendservice.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -175,6 +176,11 @@ void SendService::onPrepareFinished()
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
     if (reply->error() != QNetworkReply::NoError && status == 0) {
+        // No HTTP status at all: the connection never got that far. A refused
+        // TLS handshake lands here too, which is why TlsClient logs the
+        // reason separately - on its own this message says nothing useful.
+        qWarning("localsend: prepare-upload to %s failed: %s",
+                 qPrintable(m_peer.apiBase()), qPrintable(reply->errorString()));
         failTransfer(tr("Could not reach %1").arg(m_peer.alias));
         return;
     }
@@ -338,6 +344,8 @@ void SendService::onUploadFinished()
         failTransfer(tr("%1 stopped the transfer").arg(m_peer.alias));
         return;
     } else {
+        qWarning("localsend: upload of file %d failed with status %d: %s",
+                 m_currentRow, status, qPrintable(reply->errorString()));
         m_transfer->setFileStatus(m_currentRow, TransferModel::FileFailed,
                                   reply->errorString());
     }

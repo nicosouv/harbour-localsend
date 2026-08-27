@@ -36,6 +36,8 @@ private slots:
 
     void sendsFilesEndToEnd();
     void sendsFilesOverTls();
+    void announcesAnUppercaseFingerprint();
+    void acceptsEitherFingerprintCasing();
     void refusesAPeerWhoseCertificateDoesNotMatch();
     void receiverCanDeclineTheRequest();
     void manualAcceptStartsTheTransfer();
@@ -262,6 +264,50 @@ void TestTransfer::sendsFilesOverTls()
     QCOMPARE(finished.first().at(0).toString(), QStringLiteral("finished"));
 
     QFile landed(m_home->path() + QStringLiteral("/secret.bin"));
+    QVERIFY(landed.open(QIODevice::ReadOnly));
+    QCOMPARE(landed.readAll(), content);
+}
+
+void TestTransfer::announcesAnUppercaseFingerprint()
+{
+    // The reference implementation formats the hash with "{byte:02X}" and
+    // compares what it receives against that. Announcing lowercase makes
+    // every peer that pins strictly refuse us, and the symptom on their side
+    // is a failed handshake with nothing to read.
+    m_settings->setSecureTransport(true);
+    QVERIFY(m_settings->isEncrypted());
+
+    const QString fingerprint = m_settings->fingerprint();
+    QCOMPARE(fingerprint.length(), 64);
+    QCOMPARE(fingerprint, fingerprint.toUpper());
+    QVERIFY(fingerprint != fingerprint.toLower());
+}
+
+void TestTransfer::acceptsEitherFingerprintCasing()
+{
+    // And the other direction: a peer announcing lowercase is not wrong, only
+    // different, and refusing it would be our bug rather than theirs. This is
+    // the case that made a real Mac unreachable while receiving from it
+    // worked perfectly.
+    m_settings->setSecureTransport(true);
+    QVERIFY(m_settings->isEncrypted());
+    restartReceiver();
+
+    const QByteArray content = "case should not matter";
+    QStringList paths;
+    paths << writeFile(QStringLiteral("cased.txt"), content);
+
+    QVariantMap device = loopbackDevice();
+    device.insert(QStringLiteral("fingerprint"),
+                  m_settings->fingerprint().toLower());
+
+    QSignalSpy finished(m_sender, SIGNAL(finished(QString, int)));
+    m_sender->sendFiles(device, paths);
+
+    QTRY_VERIFY_WITH_TIMEOUT(finished.count() == 1, 20000);
+    QCOMPARE(finished.first().at(0).toString(), QStringLiteral("finished"));
+
+    QFile landed(m_home->path() + QStringLiteral("/cased.txt"));
     QVERIFY(landed.open(QIODevice::ReadOnly));
     QCOMPARE(landed.readAll(), content);
 }
