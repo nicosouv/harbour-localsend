@@ -246,6 +246,61 @@ JS_CHECKS = [
 ]
 
 
+
+def check_share_method_matches_desktop():
+    """A ShareProvider method with no matching X-Share-Methods entry.
+
+    Being a share target takes two halves that cannot see each other: the
+    .desktop file advertises a method name to the system, and a ShareProvider
+    in the QML claims that same name at runtime. When they disagree the entry
+    still appears in the share sheet and tapping it does nothing at all -
+    there is no error, on either side, because neither half knows the other
+    exists.
+    """
+    problems = []
+
+    desktop = ROOT / "harbour-localsend.desktop"
+    if not desktop.exists():
+        return problems
+
+    text = desktop.read_text(encoding="utf-8")
+
+    advertised = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("X-Share-Methods="):
+            advertised = set(
+                name for name in line.split("=", 1)[1].split(";") if name)
+
+    sections = set(re.findall(r"^\[X-Share Method ([^\]]+)\]", text, re.M))
+
+    claimed = {}
+    for path in qml_files():
+        content = path.read_text(encoding="utf-8")
+        if "ShareProvider" not in content:
+            continue
+        for match in re.finditer(r'\bmethod\s*:\s*"([^"]*)"', content):
+            claimed[match.group(1)] = path
+
+    for name in sorted(claimed):
+        if name not in advertised:
+            problems.append(
+                f"{claimed[name].relative_to(ROOT)}: ShareProvider claims "
+                f"method \"{name}\", which no X-Share-Methods entry advertises")
+
+    for name in sorted(advertised):
+        if name not in claimed:
+            problems.append(
+                f"harbour-localsend.desktop: X-Share-Methods advertises "
+                f"\"{name}\", which no ShareProvider claims")
+        if name not in sections:
+            problems.append(
+                f"harbour-localsend.desktop: no [X-Share Method {name}] "
+                f"section for the advertised method")
+
+    return problems
+
+
 def main():
     failures = 0
     checked = 0
@@ -269,6 +324,11 @@ def main():
                 print(f"    {snippet}")
                 print(f"    {check.__doc__.strip().splitlines()[0]}")
                 failures += 1
+
+    for problem in check_share_method_matches_desktop():
+        print(problem)
+        print(f"    {check_share_method_matches_desktop.__doc__.strip().splitlines()[0]}")
+        failures += 1
 
     print(f"\nchecked {checked} QML files, {failures} problem(s)")
     return 1 if failures else 0

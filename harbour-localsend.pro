@@ -100,6 +100,7 @@ DISTFILES += qml/harbour-localsend.qml \
     qml/components/TransferFileDelegate.qml \
     qml/components/SelectionTray.qml \
     qml/components/BackgroundKeeper.qml \
+    qml/components/ShareTarget.qml \
     qml/components/Formatting.js \
     qml/components/DeviceLook.js \
     rpm/harbour-localsend.spec \

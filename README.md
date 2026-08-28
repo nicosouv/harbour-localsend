@@ -19,6 +19,10 @@ what the other is running.
 - **Sends anything.** Photos, documents, archives, several files at once,
   picked in either order: choose a device and then the files, or stage files
   first and pick a device after.
+- **Sits in the Sailfish share sheet.** Share a photo from Gallery, or
+  anything from the file manager, and LocalSend is one of the destinations. It
+  stages what you shared and asks which device — the share sheet knows what to
+  send, not to whom.
 - **Encrypts by default.** TLS between the two devices, with a certificate the
   phone generates for itself and a fingerprint check in place of the
   certificate authority a local network does not have. See below.
@@ -55,6 +59,9 @@ Or just open the file from the file manager.
 Open the app on two devices on the same network and they find each other
 within a few seconds. Tap a device to send it something; wait to be sent
 something.
+
+Sharing works the other way round too: from any app's share menu, pick
+**Send with LocalSend**. The files land in the tray and the device list opens.
 
 If nothing appears, the network is almost certainly eating multicast. Pull
 down and choose **Scan network**: it registers with every address on the local
@@ -245,9 +252,15 @@ are justified line by line in `harbour-localsend.desktop`.
 | `Documents`, `Pictures`, `Videos`, `Music` | Un-blacklists each directory so the picker can read from it. |
 | `RemovableMedia` | Base sets `disable-mnt`, which hides the SD card. |
 | `MediaIndexing` | Talk to Tracker. The picker's Documents/Images/Videos/Music/Downloads tabs are all tracker-backed and come up empty without it. |
+| `Sharing` | Appear in the share sheet as a destination. It buys `org.sailfishos.share`, not an account and not the Internet. |
 
-Deliberately not requested: `Sharing`, and `UserDirs` — the latter would
-bundle `PublicDir` in with the five directories above.
+Deliberately not requested: `UserDirs` — it would bundle `PublicDir` in with
+the five directories above.
+
+Being a share target is done with `Sailfish.Share`'s `ShareProvider`, which is
+on the Harbour allowed list and lives entirely inside the app: the alternative,
+a transfer-engine plugin, would install a shared object into a system
+directory and could not be shipped this way.
 
 ## Translations
 

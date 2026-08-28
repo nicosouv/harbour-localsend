@@ -111,6 +111,37 @@ ApplicationWindow {
         appName: "LocalSend"
     }
 
+    // Files arriving from another app's share sheet. They are staged rather
+    // than sent: the share sheet knows what to send but not to whom, and the
+    // device is the one thing only the person holding the phone can choose.
+    function receiveSharedFiles(paths) {
+        if (!paths || paths.length === 0)
+            return
+
+        appWindow.activate()
+        selection.addAll(paths)
+
+        // Back to the device list, where the tray now shows what was shared
+        // and a tap on a device sends it. A transfer already on screen is
+        // left alone: popping it away would hide a transfer in flight to make
+        // room for staging the next one.
+        if (appWindow.currentObjectName() !== "transferPage"
+                && pageStack.depth > 1) {
+            pageStack.pop(null, PageStackAction.Immediate)
+        }
+    }
+
+    Loader {
+        id: shareTarget
+        source: "components/ShareTarget.qml"
+    }
+
+    Connections {
+        target: shareTarget.item
+        ignoreUnknownSignals: true
+        onFilesShared: appWindow.receiveSharedFiles(paths)
+    }
+
     // Loaded indirectly so a missing keepalive plugin degrades to "the
     // transfer may pause with the screen off" instead of a window that will
     // not build.

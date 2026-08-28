@@ -6,6 +6,25 @@ Icon=harbour-localsend
 Exec=harbour-localsend
 Comment=Send files over your local network
 Categories=Network;FileTransfer;
+# Sharing into the app: this name is what qml/components/ShareTarget.qml sets
+# as its method, and the two must agree or the entry appears and does nothing.
+X-Share-Methods=files;
+# So that sharing into a running app reuses it instead of starting a second
+# one, which would try to bind the same port and fail.
+X-Nemo-Single-Instance=yes
+
+[X-Share Method files]
+Description=Send with LocalSend
+Description[fr]=Envoyer avec LocalSend
+Description[de]=Mit LocalSend senden
+Description[es]=Enviar con LocalSend
+Description[fi]=Lähetä LocalSendillä
+Description[it]=Invia con LocalSend
+Description[nb_NO]=Send med LocalSend
+# Everything. LocalSend moves bytes and does not care what they are; a list of
+# types here would only enumerate the things it needlessly refuses.
+Capabilities=*
+SupportsMultipleFiles=yes
 
 [X-Sailjail]
 # Each entry below is here because something stops working without it, checked
@@ -27,6 +46,11 @@ Categories=Network;FileTransfer;
 #   Music           ) picker can read from, and so what can be sent.
 #   RemovableMedia  Base sets "disable-mnt", which hides the SD card. Without
 #                   it, media kept on a card can be neither sent nor saved to.
+#   Sharing         Grants "dbus-user.talk org.sailfishos.share" and the
+#                   matching broadcast. Needed to appear in the share sheet as
+#                   a destination - see the [X-Share Method files] section
+#                   above. It buys the share framework, not an account or the
+#                   Internet.
 #   MediaIndexing   Grants "dbus-user.talk org.freedesktop.Tracker3.Miner.Files".
 #                   The file picker's Documents, Images, Videos, Music and
 #                   Downloads tabs are all DocumentGalleryModel, which is
@@ -35,9 +59,17 @@ Categories=Network;FileTransfer;
 #                   release on least-privilege grounds, which was a mistake -
 #                   it is not an optional extra, it is how files get picked.
 #
-# Deliberately absent: Sharing (we register no share target) and UserDirs (it
-# is Documents, Downloads, Music, Pictures, Videos and PublicDir in one -
-# listing the five we use leaves ~/Public alone).
-Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia;MediaIndexing
+# Deliberately absent: UserDirs, which is Documents, Downloads, Music,
+# Pictures, Videos and PublicDir in one - listing the five we use leaves
+# ~/Public alone.
+Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia;MediaIndexing;Sharing
+# These two are not cosmetic. Sailjail gives the app
+# ~/.local/share/<OrganizationName>/<ApplicationName> and lets it own exactly
+# the bus name <OrganizationName>.<ApplicationName>, which is the name the
+# share framework calls. Changing either orphans the stored identity, the
+# known-device list and the history along with it.
 OrganizationName=harbour-localsend
 ApplicationName=harbour-localsend
+# Lets the share sheet start the app when it is not already running. Without
+# it, sharing only works while LocalSend happens to be open.
+ExecDBus=/usr/bin/harbour-localsend
