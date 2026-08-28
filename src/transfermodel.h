@@ -52,6 +52,9 @@ class TransferModel : public QAbstractListModel
     Q_PROPERTY(QString peerAlias READ peerAlias NOTIFY peerChanged)
     Q_PROPERTY(QString peerAddress READ peerAddress NOTIFY peerChanged)
     Q_PROPERTY(QString peerDeviceType READ peerDeviceType NOTIFY peerChanged)
+    // The key, not the name. Blocking from the incoming-request page
+    // needs the thing that survives a rename.
+    Q_PROPERTY(QString peerFingerprint READ peerFingerprint NOTIFY peerChanged)
 
     Q_PROPERTY(int fileCount READ fileCount NOTIFY progressChanged)
     Q_PROPERTY(int completedCount READ completedCount NOTIFY progressChanged)
@@ -117,6 +120,7 @@ public:
     QString peerAlias() const;
     QString peerAddress() const;
     QString peerDeviceType() const;
+    QString peerFingerprint() const;
 
     int fileCount() const;
     int completedCount() const;
@@ -136,7 +140,8 @@ public:
     // --- driven by the send and receive services -------------------------
 
     void begin(Direction direction, const QString &alias, const QString &address,
-               const QString &deviceType, const QList<FileEntry> &files);
+               const QString &deviceType, const QString &fingerprint,
+               const QList<FileEntry> &files);
     void setState(State state, const QString &error = QString());
     void setDestination(const QString &path);
 
@@ -174,6 +179,7 @@ private:
     QString m_peerAlias;
     QString m_peerAddress;
     QString m_peerDeviceType;
+    QString m_peerFingerprint;
     QString m_destination;
     QString m_errorText;
 

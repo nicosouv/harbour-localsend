@@ -18,6 +18,7 @@
 #include "devicemodel.h"
 #include "discovery.h"
 #include "historymodel.h"
+#include "knowndevices.h"
 #include "receiveservice.h"
 #include "sendservice.h"
 #include "tlsclient.h"
@@ -53,6 +54,8 @@ private slots:
     void anUploadCannotExceedTheSizeItDeclared();
     void refusesAFileThatDoesNotMatchItsDigest();
     void keepsAFileWhoseDigestMatches();
+    void refusesABlockedSenderWithoutAsking();
+    void refusesToSendToABlockedDevice();
 
 public:
     // Public so the digest helper below can hand one back.
@@ -70,6 +73,8 @@ private:
     QString writeFile(const QString &name, const QByteArray &content);
     void restartReceiver();
     static quint16 freePort();
+    // forgetAll() deliberately keeps blocks, so emptying the store takes both.
+    static void clearKnownDevices(KnownDevices *known);
 
     QTemporaryDir *m_home;
     QTemporaryDir *m_source;
@@ -78,6 +83,7 @@ private:
     DeviceModel *m_devices;
     Discovery *m_discovery;
     HistoryModel *m_history;
+    KnownDevices *m_known;
     TransferModel *m_incoming;
     TransferModel *m_outgoing;
     ReceiveService *m_receiver;
@@ -98,6 +104,17 @@ quint16 TestTransfer::freePort()
     const quint16 port = probe.serverPort();
     probe.close();
     return port;
+}
+
+void TestTransfer::clearKnownDevices(KnownDevices *known)
+{
+    const QVariantList blocked = known->blocked();
+    for (int i = 0; i < blocked.count(); ++i) {
+        known->setBlocked(blocked.at(i).toMap()
+                              .value(QStringLiteral("fingerprint")).toString(),
+                          QString(), false);
+    }
+    known->forgetAll();
 }
 
 void TestTransfer::init()
@@ -123,12 +140,19 @@ void TestTransfer::init()
     m_devices = new DeviceModel;
     m_discovery = new Discovery(m_settings, m_devices, m_network);
     m_history = new HistoryModel;
+    m_known = new KnownDevices;
+    // Test mode redirects the data location, but every case in this class
+    // shares it, so the store starts each one empty rather than carrying a
+    // block that would silently decide the next result.
+    clearKnownDevices(m_known);
     m_incoming = new TransferModel;
     m_outgoing = new TransferModel;
 
     m_receiver = new ReceiveService(m_settings, m_discovery, m_incoming,
                                     m_history, m_network);
     m_sender = new SendService(m_settings, m_outgoing, m_history, m_network);
+    m_receiver->setKnownDevices(m_known);
+    m_sender->setKnownDevices(m_known);
 
     QVERIFY2(m_receiver->startListening(),
              qPrintable(m_receiver->listenError()));
@@ -137,11 +161,13 @@ void TestTransfer::init()
 void TestTransfer::cleanup()
 {
     m_receiver->stopListening();
+    clearKnownDevices(m_known);
 
     delete m_sender;
     delete m_receiver;
     delete m_incoming;
     delete m_outgoing;
+    delete m_known;
     delete m_history;
     delete m_discovery;
     delete m_devices;
@@ -718,6 +744,70 @@ void TestTransfer::keepsAFileWhoseDigestMatches()
     QFile landed(m_home->path() + QStringLiteral("/sound.txt"));
     QVERIFY(landed.open(QIODevice::ReadOnly));
     QCOMPARE(landed.readAll(), content);
+}
+
+
+void TestTransfer::refusesABlockedSenderWithoutAsking()
+{
+    // The nuisance a blocklist answers is a peer that can make the accept
+    // prompt appear again and again. An answer that still raised the prompt
+    // would not be one, so this checks the silence as much as the status.
+    m_settings->setQuickSave(false);
+
+    const QString sender = QString(64, QLatin1Char('E'));
+    m_known->setBlocked(sender, QStringLiteral("Nuisance"), true);
+
+    QSignalSpy arrived(m_receiver, SIGNAL(requestArrived(QString, int, qint64)));
+
+    QJsonObject descriptor;
+    descriptor.insert(QStringLiteral("id"), QStringLiteral("f"));
+    descriptor.insert(QStringLiteral("fileName"), QStringLiteral("again.txt"));
+    descriptor.insert(QStringLiteral("size"), 4);
+
+    QJsonObject files;
+    files.insert(QStringLiteral("f"), descriptor);
+
+    QJsonObject info;
+    info.insert(QStringLiteral("alias"), QStringLiteral("Nuisance"));
+    info.insert(QStringLiteral("fingerprint"), sender);
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("info"), info);
+    payload.insert(QStringLiteral("files"), files);
+
+    const Reply refused = post(QStringLiteral("/prepare-upload"),
+                               QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    QCOMPARE(refused.status, 403);
+    QCOMPARE(arrived.count(), 0);
+    QCOMPARE(m_incoming->stateName(), QStringLiteral("idle"));
+
+    // And unblocking puts it back exactly as it was: a block that could not be
+    // undone would be a worse trap than no block at all.
+    m_known->setBlocked(sender, QString(), false);
+
+    const Reply allowed = post(QStringLiteral("/prepare-upload"),
+                               QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    QCOMPARE(allowed.status, 0);   // parked, waiting on the prompt
+    QTRY_VERIFY_WITH_TIMEOUT(arrived.count() == 1, 10000);
+
+    m_receiver->decline();
+}
+
+void TestTransfer::refusesToSendToABlockedDevice()
+{
+    // Blocking is also "I am not talking to that". Connecting out would
+    // announce us to it, which is most of what the block was for.
+    QStringList paths;
+    paths << writeFile(QStringLiteral("outbound.txt"), "not going anywhere");
+
+    m_known->setBlocked(m_settings->fingerprint(), QStringLiteral("Loopback"), true);
+
+    QSignalSpy arrived(m_receiver, SIGNAL(requestArrived(QString, int, qint64)));
+    m_sender->sendFiles(loopbackDevice(), paths);
+
+    QCOMPARE(m_outgoing->stateName(), QStringLiteral("failed"));
+    QVERIFY(!m_sender->isBusy());
+    QCOMPARE(arrived.count(), 0);
 }
 
 QTEST_MAIN(TestTransfer)

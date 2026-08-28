@@ -33,6 +33,20 @@ Page {
             receiver.decline()
     }
 
+    // The pulley rather than a third button: declining is the common answer
+    // and blocking is the one for a peer that will not take it for one.
+    PullDownMenu {
+        MenuItem {
+            text: qsTr("Decline and block")
+            onClicked: {
+                knownDevices.setBlocked(transfer.peerFingerprint,
+                                        transfer.peerAlias, true)
+                page.answer(false)
+                pageStack.pop()
+            }
+        }
+    }
+
     SilicaListView {
         id: fileList
 
@@ -68,9 +82,9 @@ Page {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: Theme.itemSizeExtraLarge
                         deviceType: transfer.peerDeviceType
-                        // The address, not a fingerprint we do not hold here:
-                        // it still gives the sender a stable colour.
-                        fingerprint: transfer.peerAddress
+                        // The key the certificate was checked against, so the
+                        // colour here matches the one in the device list.
+                        fingerprint: transfer.peerFingerprint
                     }
 
                     Label {

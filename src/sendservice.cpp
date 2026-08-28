@@ -76,6 +76,21 @@ void SendService::sendFiles(const QVariantMap &device, const QStringList &paths)
     if (peer.address.isEmpty() || paths.isEmpty())
         return;
 
+    // Blocked devices are filtered out of the list, so this is only reachable
+    // by adding one back by address. Blocking is not only "do not send me
+    // things" - it is also "I am not talking to that", and connecting out
+    // would announce us to it.
+    //
+    // The model is started and immediately failed rather than returning
+    // silently: the caller has already pushed the transfer page, and a page
+    // showing the previous transfer would be worse than one saying no.
+    if (m_known && m_known->isBlocked(peer.fingerprint)) {
+        m_transfer->begin(TransferModel::Sending, peer.alias, peer.address,
+                          peer.deviceType, peer.fingerprint, QList<FileEntry>());
+        m_transfer->setState(TransferModel::Failed, tr("This device is blocked"));
+        return;
+    }
+
     QMimeDatabase mimeDatabase;
     QList<FileEntry> entries;
 
@@ -110,7 +125,7 @@ void SendService::sendFiles(const QVariantMap &device, const QStringList &paths)
     emit busyChanged();
 
     m_transfer->begin(TransferModel::Sending, peer.alias, peer.address,
-                      peer.deviceType, entries);
+                      peer.deviceType, peer.fingerprint, entries);
     m_transfer->setState(TransferModel::Requesting);
 
     requestUpload(QString());

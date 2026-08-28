@@ -332,6 +332,16 @@ Page {
             onSendRequested: page.startSend(deviceModel.get(index))
             onDetailsRequested: pageStack.push(deviceDetailComponent,
                                                { device: deviceModel.get(index) })
+
+            // Remorse rather than a confirmation dialog: blocking is instantly
+            // undoable for a few seconds, and the row leaving the list is the
+            // feedback. Undoing it later means a trip to Settings.
+            onBlockRequested: {
+                var device = deviceModel.get(index)
+                remorseAction(qsTr("Blocking"), function () {
+                    knownDevices.setBlocked(device.fingerprint, device.alias, true)
+                })
+            }
         }
 
         VerticalScrollDecorator {}

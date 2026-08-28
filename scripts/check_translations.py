@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keeps the .ts catalogues honest against the QML sources.
+"""Keeps the .ts catalogues honest against the QML and C++ sources.
 
 lupdate is not run in CI - the catalogues are generated from
 scripts/make_translations.py and committed - so nothing otherwise notices
@@ -20,6 +20,7 @@ from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parent.parent
 QML_DIR = ROOT / "qml"
+SRC_DIR = ROOT / "src"
 TS_DIR = ROOT / "translations"
 
 # English is both the source language and the reference catalogue: every
@@ -55,6 +56,38 @@ def qml_strings():
     return found
 
 
+CPP_TR = re.compile(r'\btr\(\s*"((?:[^"\\]|\\.)*)"')
+# Out-of-line member definitions. Qt keys a tr() by the class it is called in,
+# so the enclosing definition is what decides the context - not the file name,
+# which is only usually the same thing.
+CPP_SCOPE = re.compile(r"^([A-Za-z_]\w*)::", re.M)
+
+
+def cpp_strings():
+    """(context, source) pairs the C++ asks to translate.
+
+    These reach the user only when something goes wrong - "Could not reach
+    %1", "The file arrived damaged" - which is exactly when being handed
+    English in a French install is least welcome.
+    """
+    found = set()
+    for path in sorted(SRC_DIR.glob("*.cpp")):
+        text = strip_comments(path.read_text(encoding="utf-8"))
+
+        # Walk the file once, remembering the class of the definition each
+        # tr() falls inside.
+        marks = [(m.start(), m.group(1)) for m in CPP_SCOPE.finditer(text)]
+        for match in CPP_TR.finditer(text):
+            context = ""
+            for position, name in marks:
+                if position > match.start():
+                    break
+                context = name
+            if context:
+                found.add((context, unescape_qml(match.group(1))))
+    return found
+
+
 def ts_strings(path):
     root = ElementTree.parse(path).getroot()
     found = set()
@@ -77,7 +110,7 @@ def report(title, pairs, limit=12):
 
 
 def main():
-    wanted = qml_strings()
+    wanted = qml_strings() | cpp_strings()
     template_path = TS_DIR / TEMPLATE
     if not template_path.exists():
         print(f"{TEMPLATE} is missing")
@@ -88,12 +121,12 @@ def main():
 
     missing = wanted - template
     if missing:
-        report(f"{TEMPLATE}: strings the QML uses with no entry", missing)
+        report(f"{TEMPLATE}: strings the sources use with no entry", missing)
         problems += len(missing)
 
     orphaned = template - wanted
     if orphaned:
-        report(f"{TEMPLATE}: entries no QML file asks for any more", orphaned)
+        report(f"{TEMPLATE}: entries no source file asks for any more", orphaned)
         problems += len(orphaned)
 
     for path in sorted(TS_DIR.glob("*.ts")):

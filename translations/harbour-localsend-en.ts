@@ -140,6 +140,37 @@
     </message>
 </context>
 <context>
+    <name>BlockedDevicesPage</name>
+    <message>
+        <source>Block a device from its entry in the list, or when it asks to send you something.</source>
+        <translation>Block a device from its entry in the list, or when it asks to send you something.</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Blocked devices</translation>
+    </message>
+    <message>
+        <source>Nothing blocked</source>
+        <translation>Nothing blocked</translation>
+    </message>
+    <message>
+        <source>Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.</source>
+        <translation>Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.</translation>
+    </message>
+    <message>
+        <source>Unblock</source>
+        <translation>Unblock</translation>
+    </message>
+    <message>
+        <source>Unblocking</source>
+        <translation>Unblocking</translation>
+    </message>
+    <message>
+        <source>Unnamed device</source>
+        <translation>Unnamed device</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -178,6 +209,10 @@
 </context>
 <context>
     <name>DeviceDelegate</name>
+    <message>
+        <source>Block this device</source>
+        <translation>Block this device</translation>
+    </message>
     <message>
         <source>Choose files to send</source>
         <translation>Choose files to send</translation>
@@ -278,6 +313,10 @@
     <message>
         <source>Before</source>
         <translation>Before</translation>
+    </message>
+    <message>
+        <source>Blocking</source>
+        <translation>Blocking</translation>
     </message>
     <message>
         <source>Clear selection</source>
@@ -485,6 +524,10 @@
         <translation>Decline</translation>
     </message>
     <message>
+        <source>Decline and block</source>
+        <translation>Decline and block</translation>
+    </message>
+    <message>
         <source>Incoming files</source>
         <translation>Incoming files</translation>
     </message>
@@ -499,6 +542,45 @@
     <message>
         <source>from %1</source>
         <translation>from %1</translation>
+    </message>
+</context>
+<context>
+    <name>ReceiveService</name>
+    <message>
+        <source>%1 of %2 files were received</source>
+        <translation>%1 of %2 files were received</translation>
+    </message>
+    <message>
+        <source>Cannot write the file</source>
+        <translation>Cannot write the file</translation>
+    </message>
+    <message>
+        <source>Cannot write to the destination folder</source>
+        <translation>Cannot write to the destination folder</translation>
+    </message>
+    <message>
+        <source>No free name for this file</source>
+        <translation>No free name for this file</translation>
+    </message>
+    <message>
+        <source>Nothing was received</source>
+        <translation>Nothing was received</translation>
+    </message>
+    <message>
+        <source>The file arrived damaged</source>
+        <translation>The file arrived damaged</translation>
+    </message>
+    <message>
+        <source>The sender disconnected</source>
+        <translation>The sender disconnected</translation>
+    </message>
+    <message>
+        <source>Transfer stopped</source>
+        <translation>Transfer stopped</translation>
+    </message>
+    <message>
+        <source>Transfer was cut short</source>
+        <translation>Transfer was cut short</translation>
     </message>
 </context>
 <context>
@@ -558,7 +640,61 @@
     </message>
 </context>
 <context>
+    <name>SendService</name>
+    <message>
+        <source>%1 is busy with another transfer</source>
+        <translation>%1 is busy with another transfer</translation>
+    </message>
+    <message>
+        <source>%1 is refusing new requests</source>
+        <translation>%1 is refusing new requests</translation>
+    </message>
+    <message>
+        <source>%1 of %2 files were sent</source>
+        <translation>%1 of %2 files were sent</translation>
+    </message>
+    <message>
+        <source>%1 refused the transfer (%2)</source>
+        <translation>%1 refused the transfer (%2)</translation>
+    </message>
+    <message>
+        <source>%1 sent an unreadable reply</source>
+        <translation>%1 sent an unreadable reply</translation>
+    </message>
+    <message>
+        <source>%1 stopped the transfer</source>
+        <translation>%1 stopped the transfer</translation>
+    </message>
+    <message>
+        <source>Could not open the file</source>
+        <translation>Could not open the file</translation>
+    </message>
+    <message>
+        <source>Could not reach %1</source>
+        <translation>Could not reach %1</translation>
+    </message>
+    <message>
+        <source>Nothing was sent</source>
+        <translation>Nothing was sent</translation>
+    </message>
+    <message>
+        <source>The transfer was stopped</source>
+        <translation>The transfer was stopped</translation>
+    </message>
+    <message>
+        <source>This device is blocked</source>
+        <translation>This device is blocked</translation>
+    </message>
+</context>
+<context>
     <name>SettingsPage</name>
+    <message numerus="yes">
+        <source>%n device(s)</source>
+        <translation>
+            <numerusform>%n device</numerusform>
+            <numerusform>%n devices</numerusform>
+        </translation>
+    </message>
     <message>
         <source>4 to 8 digits</source>
         <translation>4 to 8 digits</translation>
@@ -582,6 +718,10 @@
     <message>
         <source>Allow incoming files</source>
         <translation>Allow incoming files</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Blocked devices</translation>
     </message>
     <message>
         <source>Change the PIN</source>
@@ -624,6 +764,10 @@
         <translation>Listening port</translation>
     </message>
     <message>
+        <source>None</source>
+        <translation>None</translation>
+    </message>
+    <message>
         <source>Not set</source>
         <translation>Not set</translation>
     </message>
@@ -658,6 +802,10 @@
     <message>
         <source>Records what was sent and received, and where it was saved.</source>
         <translation>Records what was sent and received, and where it was saved.</translation>
+    </message>
+    <message>
+        <source>Refused before you are asked, and hidden from the device list.</source>
+        <translation>Refused before you are asked, and hidden from the device list.</translation>
     </message>
     <message>
         <source>Remove the PIN</source>

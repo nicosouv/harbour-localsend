@@ -282,7 +282,19 @@ void ReceiveService::handlePrepareUpload(HttpConnection *connection)
             connection->respond(403);
             return;
         }
+        // From here the claimed key and the handshake key are the same
+        // string, so blocking one blocks the other.
     }
+
+    // After the key has been checked and before anything is shown to anybody.
+    // Checking first would let a blocked peer walk around the list by claiming
+    // a fingerprint that is not its own; checking later would raise the very
+    // prompt the block exists to stop, which is the whole nuisance.
+    if (m_known && m_known->isBlocked(peer.fingerprint)) {
+        connection->respond(403);
+        return;
+    }
+
     // A sender we have never seen still belongs in the device list, and this
     // is often how a device on a multicast-hostile network first appears.
     m_discovery->registerPeer(info, connection->peerAddress());
@@ -318,7 +330,7 @@ void ReceiveService::handlePrepareUpload(HttpConnection *connection)
 
     m_peer = peer;
     m_transfer->begin(TransferModel::Receiving, peer.alias, peer.address,
-                      peer.deviceType, entries);
+                      peer.deviceType, peer.fingerprint, entries);
     m_transfer->setState(TransferModel::Pending);
 
     m_pending = connection;

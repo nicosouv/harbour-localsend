@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 // Remembers which key belongs to which name, so impersonation becomes visible.
 //
@@ -33,6 +34,19 @@ public:
     explicit KnownDevices(QObject *parent = 0);
 
     bool isKnown(const QString &fingerprint) const;
+
+    // Devices whose transfers are refused outright, by key rather than by
+    // name: a name is chosen by whoever is using it, so blocking one would
+    // block whoever picked it next.
+    //
+    // Enforced before the accept prompt, which is the point - the nuisance a
+    // blocklist answers is a peer that can make that prompt appear again and
+    // again, and an answer that still shows the prompt answers nothing.
+    Q_INVOKABLE bool isBlocked(const QString &fingerprint) const;
+    Q_INVOKABLE void setBlocked(const QString &fingerprint, const QString &alias,
+                                bool blocked);
+    // fingerprint, alias pairs, for the page that manages them.
+    Q_INVOKABLE QVariantList blocked() const;
     QString aliasFor(const QString &fingerprint) const;
     QDateTime firstSeen(const QString &fingerprint) const;
 
@@ -49,6 +63,8 @@ public:
     // discovery.
     void remember(const QString &fingerprint, const QString &alias);
 
+    // Both keep any block in place: forgetting a device and agreeing to
+    // hear from it again are separate decisions.
     Q_INVOKABLE void forget(const QString &fingerprint);
     Q_INVOKABLE void forgetAll();
 
@@ -62,6 +78,13 @@ private:
     {
         QString alias;
         QDateTime firstSeen;
+        // We have completed an exchange with this key. Separate from merely
+        // having a row: blocking a device we have never met writes one too,
+        // and a blocked key must not count as a device we trust.
+        bool paired;
+        bool blocked;
+
+        Entry();
     };
 
     QString storagePath() const;

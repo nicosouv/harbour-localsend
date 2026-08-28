@@ -147,6 +147,15 @@ Other hardening, all of it covered by tests:
   unauthenticated UDP with a forgeable source, so answering every one would
   let an attacker aim this device's replies at a third party. Responses are
   rate-limited per address.
+- **A blocked device is refused before you are asked.** Blocking is keyed on
+  the certificate, not the name — a name is chosen by whoever is using it, and
+  a block that followed one would last exactly as long as it took the other
+  side to type something else. It is enforced after the handshake key has been
+  checked, so a blocked peer cannot walk around it by claiming a fingerprint
+  it does not hold, and before the accept prompt, because the prompt is the
+  nuisance a block exists to stop. Blocked devices are also hidden from the
+  list and refused as a destination. Forgetting a device does not unblock it;
+  Settings → Blocked devices does.
 - **Limits that stop a peer exhausting the device**: concurrent connections,
   header size, buffered body size, declared file count, device-list size, and
   idle timeouts on the socket, the TLS handshake, the session, and the drain
@@ -197,8 +206,16 @@ docker compose run --rm tests     # unit tests, including a loopback transfer
 docker compose run --rm syntax    # compile-check every C++ file
 docker compose run --rm qmllint   # parse every QML file
 docker compose run --rm checks    # Qt 5.6 compatibility, QML traps, translations
+docker compose run --rm sanitize  # the same tests under ASan and UBSan
+docker compose run --rm fuzz      # arbitrary bytes into the HTTP parser
 docker compose run --rm icons     # redraw the app icon
 ```
+
+The HTTP layer is hand-written, because Qt 5.6 has no HTTP server, and it
+parses bytes chosen by whoever is on the network. `fuzz` drives the real
+server over the loopback under libFuzzer with ASan and UBSan on, seeded from
+`tests/fuzz-corpus`. It stops after two minutes by default; set
+`FUZZ_SECONDS` for a longer hunt.
 
 The RPM is built by GitHub Actions for all three architectures. Tag a version
 to publish a release:
@@ -237,7 +254,10 @@ bundle `PublicDir` in with the five directories above.
 English, French, German, Spanish, Finnish, Italian and Norwegian Bokmål.
 
 The catalogues are generated from a single table so a string is translated
-once and cannot drift between the files that use it:
+once and cannot drift between the files that use it. Both the QML `qsTr()`
+strings and the C++ `tr()` ones are covered — the latter are the messages a
+failed transfer ends on, which is when English in a French install is least
+welcome:
 
 ```bash
 docker compose run --rm checks               # says what is missing

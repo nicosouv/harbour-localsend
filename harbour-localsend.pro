@@ -88,6 +88,7 @@ DISTFILES += qml/harbour-localsend.qml \
     qml/pages/SelectionPage.qml \
     qml/pages/HistoryPage.qml \
     qml/pages/AddDevicePage.qml \
+    qml/pages/BlockedDevicesPage.qml \
     qml/pages/SettingsPage.qml \
     qml/pages/AboutPage.qml \
     qml/pages/PinDialog.qml \

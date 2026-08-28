@@ -5,9 +5,16 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QVariantMap>
 
 #include "crypto.h"
 #include "securestore.h"
+
+KnownDevices::Entry::Entry()
+    : paired(false)
+    , blocked(false)
+{
+}
 
 KnownDevices::KnownDevices(QObject *parent)
     : QObject(parent)
@@ -40,6 +47,10 @@ void KnownDevices::load()
         entry.alias = value.value(QStringLiteral("alias")).toString();
         entry.firstSeen = QDateTime::fromMSecsSinceEpoch(
             qint64(value.value(QStringLiteral("firstSeen")).toDouble()));
+        entry.blocked = value.value(QStringLiteral("blocked")).toBool(false);
+        // Catalogues written before blocking existed hold nothing but
+        // completed pairings, so an entry with no flag and no block is one.
+        entry.paired = value.value(QStringLiteral("paired")).toBool(!entry.blocked);
 
         // Stored uppercase so a catalogue written by an older build, or by a
         // peer using the other hex convention, still matches on lookup.
@@ -57,6 +68,8 @@ void KnownDevices::save()
         value.insert(QStringLiteral("alias"), it.value().alias);
         value.insert(QStringLiteral("firstSeen"),
                      double(it.value().firstSeen.toMSecsSinceEpoch()));
+        value.insert(QStringLiteral("paired"), it.value().paired);
+        value.insert(QStringLiteral("blocked"), it.value().blocked);
         root.insert(it.key(), value);
     }
 
@@ -67,9 +80,67 @@ void KnownDevices::save()
                                   QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
+bool KnownDevices::isBlocked(const QString &fingerprint) const
+{
+    if (fingerprint.isEmpty())
+        return false;
+    return m_entries.value(fingerprint.toUpper()).blocked;
+}
+
+void KnownDevices::setBlocked(const QString &fingerprint, const QString &alias,
+                              bool blocked)
+{
+    if (fingerprint.isEmpty())
+        return;
+
+    const QString key = fingerprint.toUpper();
+    QHash<QString, Entry>::iterator it = m_entries.find(key);
+
+    if (it == m_entries.end()) {
+        if (!blocked)
+            return;   // nothing to unblock
+
+        // Blocking a device we have never exchanged with is the common case:
+        // it is exactly the peer nobody wants to hear from again.
+        Entry entry;
+        entry.alias = alias;
+        entry.firstSeen = QDateTime::currentDateTime();
+        entry.blocked = true;
+        m_entries.insert(key, entry);
+    } else {
+        if (it.value().blocked == blocked)
+            return;
+        it.value().blocked = blocked;
+        if (!alias.isEmpty())
+            it.value().alias = alias;
+    }
+
+    save();
+    emit changed();
+}
+
+QVariantList KnownDevices::blocked() const
+{
+    QVariantList list;
+
+    QHash<QString, Entry>::const_iterator it = m_entries.constBegin();
+    for (; it != m_entries.constEnd(); ++it) {
+        if (!it.value().blocked)
+            continue;
+        QVariantMap entry;
+        entry.insert(QStringLiteral("fingerprint"), it.key());
+        entry.insert(QStringLiteral("alias"), it.value().alias);
+        list.append(entry);
+    }
+    return list;
+}
+
+// "Known" means we have exchanged files with this key, not that it appears in
+// the file: a key that is only there because somebody blocked it has never
+// been trusted with anything.
 bool KnownDevices::isKnown(const QString &fingerprint) const
 {
-    return !fingerprint.isEmpty() && m_entries.contains(fingerprint.toUpper());
+    return !fingerprint.isEmpty() && m_entries.value(fingerprint.toUpper()).paired;
 }
 
 QString KnownDevices::aliasFor(const QString &fingerprint) const
@@ -89,7 +160,11 @@ QString KnownDevices::expectedFingerprint(const QString &alias) const
 
     QHash<QString, Entry>::const_iterator it = m_entries.constBegin();
     for (; it != m_entries.constEnd(); ++it) {
-        if (it.value().alias == alias)
+        // Only pairings speak to what a name meant before. A blocked entry
+        // carries the name the device used at the time it was blocked, and
+        // letting that answer here would raise the impersonation warning on
+        // the user's own device the moment it reused the name.
+        if (it.value().paired && it.value().alias == alias)
             return it.key();
     }
     return QString();
@@ -121,14 +196,16 @@ void KnownDevices::remember(const QString &fingerprint, const QString &alias)
     QHash<QString, Entry>::iterator it = m_entries.find(key);
 
     if (it != m_entries.end()) {
-        if (it.value().alias == alias)
+        if (it.value().paired && it.value().alias == alias)
             return;   // nothing changed
         // The key is the identity, so a rename is the owner's business.
         it.value().alias = alias;
+        it.value().paired = true;
     } else {
         Entry entry;
         entry.alias = alias;
         entry.firstSeen = QDateTime::currentDateTime();
+        entry.paired = true;
         m_entries.insert(key, entry);
     }
 
@@ -136,10 +213,27 @@ void KnownDevices::remember(const QString &fingerprint, const QString &alias)
     emit changed();
 }
 
+// Forgetting drops what we learned about a device. It deliberately does not
+// drop a block: "forget this device" and "start accepting files from it
+// again" are different intentions, and a button that quietly did the second
+// while offering the first would be the wrong kind of surprise. Unblocking
+// has its own page.
 void KnownDevices::forget(const QString &fingerprint)
 {
-    if (m_entries.remove(fingerprint.toUpper()) == 0)
+    const QString key = fingerprint.toUpper();
+    QHash<QString, Entry>::iterator it = m_entries.find(key);
+    if (it == m_entries.end())
         return;
+
+    if (it.value().blocked) {
+        // Keep the block, lose the pairing.
+        it.value().alias.clear();
+        it.value().paired = false;
+        it.value().firstSeen = QDateTime::currentDateTime();
+    } else {
+        m_entries.erase(it);
+    }
+
     save();
     emit changed();
 }
@@ -148,12 +242,39 @@ void KnownDevices::forgetAll()
 {
     if (m_entries.isEmpty())
         return;
-    m_entries.clear();
+
+    QHash<QString, Entry> kept;
+    QHash<QString, Entry>::const_iterator it = m_entries.constBegin();
+    for (; it != m_entries.constEnd(); ++it) {
+        if (!it.value().blocked)
+            continue;
+        Entry entry;
+        entry.blocked = true;
+        entry.firstSeen = QDateTime::currentDateTime();
+        kept.insert(it.key(), entry);
+    }
+
+    bool changedAnything = kept.count() != m_entries.count();
+    if (!changedAnything) {
+        QHash<QString, Entry>::const_iterator paired = m_entries.constBegin();
+        for (; paired != m_entries.constEnd() && !changedAnything; ++paired)
+            changedAnything = paired.value().paired;
+    }
+    if (!changedAnything)
+        return;   // only blocks were on record; nothing to forget
+
+    m_entries = kept;
     save();
     emit changed();
 }
 
 int KnownDevices::count() const
 {
-    return m_entries.count();
+    int total = 0;
+    QHash<QString, Entry>::const_iterator it = m_entries.constBegin();
+    for (; it != m_entries.constEnd(); ++it) {
+        if (it.value().paired)
+            ++total;
+    }
+    return total;
 }

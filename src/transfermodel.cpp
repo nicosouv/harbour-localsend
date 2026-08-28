@@ -126,6 +126,7 @@ QString TransferModel::directionName() const
 QString TransferModel::peerAlias() const { return m_peerAlias; }
 QString TransferModel::peerAddress() const { return m_peerAddress; }
 QString TransferModel::peerDeviceType() const { return m_peerDeviceType; }
+QString TransferModel::peerFingerprint() const { return m_peerFingerprint; }
 QString TransferModel::destination() const { return m_destination; }
 QString TransferModel::errorText() const { return m_errorText; }
 
@@ -196,6 +197,7 @@ int TransferModel::elapsedSeconds() const
 
 void TransferModel::begin(Direction direction, const QString &alias,
                           const QString &address, const QString &deviceType,
+                          const QString &fingerprint,
                           const QList<FileEntry> &files)
 {
     beginResetModel();
@@ -204,6 +206,7 @@ void TransferModel::begin(Direction direction, const QString &alias,
     m_peerAlias = alias;
     m_peerAddress = address;
     m_peerDeviceType = deviceType;
+    m_peerFingerprint = fingerprint;
     m_errorText.clear();
     m_destination.clear();
     m_transferredBytes = 0;

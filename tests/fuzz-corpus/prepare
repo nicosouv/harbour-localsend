@@ -1,0 +1,4 @@
+POST /api/localsend/v2/prepare-upload HTTP/1.1
+Content-Length: 2
+
+{}

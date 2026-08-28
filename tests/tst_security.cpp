@@ -1,4 +1,5 @@
 #include <QSslCertificate>
+#include <QVariantList>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -35,6 +36,11 @@ private slots:
     void flagsAKnownNameArrivingWithANewKey();
     void treatsARenameAsTheOwnersBusiness();
     void survivesARestart();
+
+    void blocksByKeyRatherThanByName();
+    void blockingIsNotTrusting();
+    void forgettingDoesNotUnblock();
+    void blocksSurviveARestart();
 
     void rateLimiterLetsHonestMistakesThrough();
     void rateLimiterBacksOffAndRecovers();
@@ -411,6 +417,123 @@ void TestSecurity::survivesARestart()
     QVERIFY(!reloaded.isKnown(key));
 
     reloaded.forgetAll();
+}
+
+
+// A helper rather than forgetAll(), which deliberately keeps blocks: a test
+// that left one behind would decide the outcome of the next one.
+static void clearEverything(KnownDevices &known)
+{
+    const QVariantList blocked = known.blocked();
+    for (int i = 0; i < blocked.count(); ++i) {
+        known.setBlocked(blocked.at(i).toMap()
+                             .value(QStringLiteral("fingerprint")).toString(),
+                         QString(), false);
+    }
+    known.forgetAll();
+}
+
+void TestSecurity::blocksByKeyRatherThanByName()
+{
+    KnownDevices known;
+    clearEverything(known);
+
+    const QString key = QString(64, QLatin1Char('E'));
+
+    QVERIFY(!known.isBlocked(key));
+    known.setBlocked(key, QStringLiteral("Nuisance"), true);
+    QVERIFY(known.isBlocked(key));
+
+    // The whole point of keying on the certificate: renaming is free, so a
+    // block that followed the name would last exactly as long as it took the
+    // other side to type something else.
+    known.setBlocked(key, QStringLiteral("Something Else"), true);
+    QVERIFY(known.isBlocked(key));
+
+    // Casing is a convention, not an identity. LocalSend implementations
+    // differ on it and a block must not depend on which one we met.
+    QVERIFY(known.isBlocked(key.toLower()));
+
+    // And nothing else is caught by it.
+    QVERIFY(!known.isBlocked(QString(64, QLatin1Char('F'))));
+
+    const QVariantList listed = known.blocked();
+    QCOMPARE(listed.count(), 1);
+    QCOMPARE(listed.first().toMap().value(QStringLiteral("fingerprint")).toString(),
+             key);
+
+    known.setBlocked(key, QString(), false);
+    QVERIFY(!known.isBlocked(key));
+    QVERIFY(known.blocked().isEmpty());
+
+    clearEverything(known);
+}
+
+void TestSecurity::blockingIsNotTrusting()
+{
+    KnownDevices known;
+    clearEverything(known);
+
+    const QString nuisance = QString(64, QLatin1Char('E'));
+    const QString mine = QString(64, QLatin1Char('F'));
+
+    known.setBlocked(nuisance, QStringLiteral("MacBook"), true);
+
+    // Blocking writes a row, and a row is not a pairing. Counting it as one
+    // would mark the device as already trusted in the list.
+    QVERIFY(!known.isKnown(nuisance));
+    QCOMPARE(known.count(), 0);
+
+    // It must also not answer for the name. Otherwise blocking a peer calling
+    // itself "MacBook" would raise the impersonation warning on the user's
+    // own MacBook the first time it appeared.
+    QVERIFY(known.expectedFingerprint(QStringLiteral("MacBook")).isEmpty());
+    QVERIFY(!known.conflicts(mine, QStringLiteral("MacBook")));
+
+    clearEverything(known);
+}
+
+void TestSecurity::forgettingDoesNotUnblock()
+{
+    KnownDevices known;
+    clearEverything(known);
+
+    const QString blocked = QString(64, QLatin1Char('E'));
+    const QString paired = QString(64, QLatin1Char('F'));
+
+    known.setBlocked(blocked, QStringLiteral("Nuisance"), true);
+    known.remember(paired, QStringLiteral("Laptop"));
+
+    // "Forget this device" and "start accepting its files again" are two
+    // different intentions, and only one of them was asked for.
+    known.forget(blocked);
+    QVERIFY(known.isBlocked(blocked));
+
+    known.forgetAll();
+    QVERIFY(known.isBlocked(blocked));
+    QVERIFY(!known.isKnown(paired));
+
+    clearEverything(known);
+}
+
+void TestSecurity::blocksSurviveARestart()
+{
+    const QString key = QString(64, QLatin1Char('E'));
+
+    {
+        KnownDevices known;
+        clearEverything(known);
+        known.setBlocked(key, QStringLiteral("Nuisance"), true);
+    }
+
+    // A block that lasted only until the app was closed would be no block at
+    // all: the peer it exists for is the one that keeps coming back.
+    KnownDevices reloaded;
+    QVERIFY(reloaded.isBlocked(key));
+    QCOMPARE(reloaded.blocked().count(), 1);
+    QVERIFY(!reloaded.isKnown(key));
+
+    clearEverything(reloaded);
 }
 
 void TestSecurity::rateLimiterLetsHonestMistakesThrough()

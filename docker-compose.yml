@@ -36,6 +36,23 @@ services:
       UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
       ctest --test-dir /build-asan --output-on-failure"
 
+  # Arbitrary bytes into the HTTP layer, under libFuzzer and the sanitizers.
+  # Bounded by time so it can be run as a gate; give it -max_total_time=3600
+  # by hand when hunting rather than checking.
+  fuzz:
+    build: ./tests
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: >
+      bash -c "cmake -S tests -B /build-fuzz -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      -DFUZZ=ON -DCMAKE_CXX_COMPILER=clang++
+      && cmake --build /build-fuzz --target fuzz_http
+      && mkdir -p /src/tests/fuzz-corpus
+      && QT_QPA_PLATFORM=offscreen ASAN_OPTIONS=detect_leaks=0
+      /build-fuzz/fuzz_http /src/tests/fuzz-corpus
+      -max_total_time=${FUZZ_SECONDS:-120} -print_final_stats=1"
+
   syntax:
     build: ./tests
     volumes:

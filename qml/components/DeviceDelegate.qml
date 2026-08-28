@@ -31,6 +31,7 @@ ListItem {
 
     signal sendRequested()
     signal detailsRequested()
+    signal blockRequested()
 
     onClicked: sendRequested()
 
@@ -146,6 +147,10 @@ ListItem {
             MenuItem {
                 text: qsTr("Device details")
                 onClicked: delegate.detailsRequested()
+            }
+            MenuItem {
+                text: qsTr("Block this device")
+                onClicked: delegate.blockRequested()
             }
         }
     }

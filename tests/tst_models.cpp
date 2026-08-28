@@ -58,7 +58,7 @@ void TestModels::transferTracksBytesAcrossFiles()
     TransferModel transfer;
     transfer.begin(TransferModel::Sending, QStringLiteral("Peer"),
                    QStringLiteral("10.0.0.2"), QStringLiteral("desktop"),
-                   threeFiles());
+                   QString(64, QLatin1Char('A')), threeFiles());
 
     QCOMPARE(transfer.fileCount(), 3);
     QCOMPARE(transfer.totalBytes(), qint64(300));
@@ -90,7 +90,7 @@ void TestModels::finishedFileCountsForItsWholeSize()
     TransferModel transfer;
     transfer.begin(TransferModel::Receiving, QStringLiteral("Peer"),
                    QStringLiteral("10.0.0.2"), QStringLiteral("mobile"),
-                   threeFiles());
+                   QString(64, QLatin1Char('A')), threeFiles());
 
     // The last progress report before completion routinely goes missing, and
     // a transfer that ends at 99% looks broken however correct it was.
@@ -120,7 +120,8 @@ void TestModels::transferProgressSurvivesZeroByteFiles()
 
     TransferModel transfer;
     transfer.begin(TransferModel::Sending, QStringLiteral("Peer"),
-                   QStringLiteral("10.0.0.2"), QStringLiteral("desktop"), files);
+                   QStringLiteral("10.0.0.2"), QStringLiteral("desktop"),
+                   QString(64, QLatin1Char('A')), files);
 
     // Nothing to divide by, so progress falls back to counting files rather
     // than producing a NaN that paints an empty ring forever.
@@ -142,7 +143,7 @@ void TestModels::transferNamesItsStateForQml()
 
     transfer.begin(TransferModel::Sending, QStringLiteral("Peer"),
                    QStringLiteral("10.0.0.2"), QStringLiteral("desktop"),
-                   threeFiles());
+                   QString(64, QLatin1Char('A')), threeFiles());
 
     transfer.setState(TransferModel::Requesting);
     QCOMPARE(transfer.stateName(), QStringLiteral("requesting"));

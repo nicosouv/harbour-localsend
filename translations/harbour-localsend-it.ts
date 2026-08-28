@@ -140,6 +140,37 @@
     </message>
 </context>
 <context>
+    <name>BlockedDevicesPage</name>
+    <message>
+        <source>Block a device from its entry in the list, or when it asks to send you something.</source>
+        <translation>Blocca un dispositivo dalla sua voce nell'elenco, oppure quando chiede di inviarti qualcosa.</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Dispositivi bloccati</translation>
+    </message>
+    <message>
+        <source>Nothing blocked</source>
+        <translation>Nessun blocco</translation>
+    </message>
+    <message>
+        <source>Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.</source>
+        <translation>I trasferimenti da questi dispositivi vengono rifiutati senza chiedere, e non compaiono tra i dispositivi nelle vicinanze. Il blocco segue la chiave e non il nome, quindi rinominarli non lo annulla.</translation>
+    </message>
+    <message>
+        <source>Unblock</source>
+        <translation>Sblocca</translation>
+    </message>
+    <message>
+        <source>Unblocking</source>
+        <translation>Sblocco in corso</translation>
+    </message>
+    <message>
+        <source>Unnamed device</source>
+        <translation>Dispositivo senza nome</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -178,6 +209,10 @@
 </context>
 <context>
     <name>DeviceDelegate</name>
+    <message>
+        <source>Block this device</source>
+        <translation>Blocca questo dispositivo</translation>
+    </message>
     <message>
         <source>Choose files to send</source>
         <translation>Scegli i file da inviare</translation>
@@ -278,6 +313,10 @@
     <message>
         <source>Before</source>
         <translation>Prima</translation>
+    </message>
+    <message>
+        <source>Blocking</source>
+        <translation>Blocco in corso</translation>
     </message>
     <message>
         <source>Clear selection</source>
@@ -485,6 +524,10 @@
         <translation>Rifiuta</translation>
     </message>
     <message>
+        <source>Decline and block</source>
+        <translation>Rifiuta e blocca</translation>
+    </message>
+    <message>
         <source>Incoming files</source>
         <translation>File in arrivo</translation>
     </message>
@@ -499,6 +542,45 @@
     <message>
         <source>from %1</source>
         <translation>da %1</translation>
+    </message>
+</context>
+<context>
+    <name>ReceiveService</name>
+    <message>
+        <source>%1 of %2 files were received</source>
+        <translation>Ricevuti %1 file su %2</translation>
+    </message>
+    <message>
+        <source>Cannot write the file</source>
+        <translation>Impossibile scrivere il file</translation>
+    </message>
+    <message>
+        <source>Cannot write to the destination folder</source>
+        <translation>Impossibile scrivere nella cartella di destinazione</translation>
+    </message>
+    <message>
+        <source>No free name for this file</source>
+        <translation>Nessun nome disponibile per questo file</translation>
+    </message>
+    <message>
+        <source>Nothing was received</source>
+        <translation>Non è stato ricevuto nulla</translation>
+    </message>
+    <message>
+        <source>The file arrived damaged</source>
+        <translation>Il file è arrivato danneggiato</translation>
+    </message>
+    <message>
+        <source>The sender disconnected</source>
+        <translation>Il mittente si è disconnesso</translation>
+    </message>
+    <message>
+        <source>Transfer stopped</source>
+        <translation>Trasferimento interrotto</translation>
+    </message>
+    <message>
+        <source>Transfer was cut short</source>
+        <translation>Il trasferimento si è interrotto</translation>
     </message>
 </context>
 <context>
@@ -558,7 +640,61 @@
     </message>
 </context>
 <context>
+    <name>SendService</name>
+    <message>
+        <source>%1 is busy with another transfer</source>
+        <translation>%1 è occupato con un altro trasferimento</translation>
+    </message>
+    <message>
+        <source>%1 is refusing new requests</source>
+        <translation>%1 sta rifiutando nuove richieste</translation>
+    </message>
+    <message>
+        <source>%1 of %2 files were sent</source>
+        <translation>Inviati %1 file su %2</translation>
+    </message>
+    <message>
+        <source>%1 refused the transfer (%2)</source>
+        <translation>%1 ha rifiutato il trasferimento (%2)</translation>
+    </message>
+    <message>
+        <source>%1 sent an unreadable reply</source>
+        <translation>%1 ha inviato una risposta illeggibile</translation>
+    </message>
+    <message>
+        <source>%1 stopped the transfer</source>
+        <translation>%1 ha interrotto il trasferimento</translation>
+    </message>
+    <message>
+        <source>Could not open the file</source>
+        <translation>Impossibile aprire il file</translation>
+    </message>
+    <message>
+        <source>Could not reach %1</source>
+        <translation>Impossibile raggiungere %1</translation>
+    </message>
+    <message>
+        <source>Nothing was sent</source>
+        <translation>Non è stato inviato nulla</translation>
+    </message>
+    <message>
+        <source>The transfer was stopped</source>
+        <translation>Il trasferimento è stato interrotto</translation>
+    </message>
+    <message>
+        <source>This device is blocked</source>
+        <translation>Questo dispositivo è bloccato</translation>
+    </message>
+</context>
+<context>
     <name>SettingsPage</name>
+    <message numerus="yes">
+        <source>%n device(s)</source>
+        <translation>
+            <numerusform>%n dispositivo</numerusform>
+            <numerusform>%n dispositivi</numerusform>
+        </translation>
+    </message>
     <message>
         <source>4 to 8 digits</source>
         <translation>Da 4 a 8 cifre</translation>
@@ -582,6 +718,10 @@
     <message>
         <source>Allow incoming files</source>
         <translation>Consenti i file in arrivo</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Dispositivi bloccati</translation>
     </message>
     <message>
         <source>Change the PIN</source>
@@ -624,6 +764,10 @@
         <translation>Porta di ascolto</translation>
     </message>
     <message>
+        <source>None</source>
+        <translation>Nessuno</translation>
+    </message>
+    <message>
         <source>Not set</source>
         <translation>Non impostato</translation>
     </message>
@@ -658,6 +802,10 @@
     <message>
         <source>Records what was sent and received, and where it was saved.</source>
         <translation>Registra che cosa è stato inviato e ricevuto, e dove è stato salvato.</translation>
+    </message>
+    <message>
+        <source>Refused before you are asked, and hidden from the device list.</source>
+        <translation>Rifiutati prima ancora di chiedertelo, e nascosti dall'elenco dei dispositivi.</translation>
     </message>
     <message>
         <source>Remove the PIN</source>

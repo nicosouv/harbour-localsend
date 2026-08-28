@@ -4,7 +4,7 @@
 lupdate is not available in any lane that runs here, and hand-editing seven
 XML files per string change is how catalogues drift. So the translations live
 in one dictionary keyed by the English source, the contexts are read back out
-of the QML, and the files are generated.
+of the QML and the C++, and the files are generated.
 
 Keying by source rather than by (context, source) is deliberate: "Settings"
 appears in three files and should not be able to come out differently in each
@@ -23,6 +23,7 @@ from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parent.parent
 QML_DIR = ROOT / "qml"
+SRC_DIR = ROOT / "src"
 TS_DIR = ROOT / "translations"
 
 LOCALES = ["en", "fr", "de", "es", "fi", "it", "nb_NO"]
@@ -1135,6 +1136,234 @@ TRANSLATIONS = {
         "es": "Sin dispositivos", "fi": "Ei laitteita", "it": "Nessun dispositivo",
         "nb_NO": "Ingen enheter",
     },
+    # --- the blocklist -------------------------------------------------
+    "Block this device": {
+        "en": "Block this device", "fr": "Bloquer cet appareil",
+        "de": "Dieses Gerät blockieren", "es": "Bloquear este dispositivo",
+        "fi": "Estä tämä laite", "it": "Blocca questo dispositivo",
+        "nb_NO": "Blokker denne enheten",
+    },
+    "Blocking": {
+        "en": "Blocking", "fr": "Blocage", "de": "Wird blockiert",
+        "es": "Bloqueando", "fi": "Estetään", "it": "Blocco in corso",
+        "nb_NO": "Blokkerer",
+    },
+    "Blocked devices": {
+        "en": "Blocked devices", "fr": "Appareils bloqués",
+        "de": "Blockierte Geräte", "es": "Dispositivos bloqueados",
+        "fi": "Estetyt laitteet", "it": "Dispositivi bloccati",
+        "nb_NO": "Blokkerte enheter",
+    },
+    "Refused before you are asked, and hidden from the device list.": {
+        "en": "Refused before you are asked, and hidden from the device list.",
+        "fr": "Refusés avant même qu'on vous demande, et masqués de la liste des appareils.",
+        "de": "Werden abgelehnt, bevor Sie gefragt werden, und in der Geräteliste ausgeblendet.",
+        "es": "Se rechazan antes de preguntarte, y no aparecen en la lista de dispositivos.",
+        "fi": "Hylätään kysymättä, eivätkä näy laiteluettelossa.",
+        "it": "Rifiutati prima ancora di chiedertelo, e nascosti dall'elenco dei dispositivi.",
+        "nb_NO": "Avvises før du blir spurt, og skjules fra enhetslisten.",
+    },
+    "None": {
+        "en": "None", "fr": "Aucun", "de": "Keine", "es": "Ninguno",
+        "fi": "Ei yhtään", "it": "Nessuno", "nb_NO": "Ingen",
+    },
+    "Decline and block": {
+        "en": "Decline and block", "fr": "Refuser et bloquer",
+        "de": "Ablehnen und blockieren", "es": "Rechazar y bloquear",
+        "fi": "Hylkää ja estä", "it": "Rifiuta e blocca",
+        "nb_NO": "Avslå og blokker",
+    },
+    "Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.": {
+        "en": "Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.",
+        "fr": "Les transferts venant de ces appareils sont refusés sans rien demander, et ils n'apparaissent pas parmi les appareils à proximité. Le blocage suit la clé et non le nom : les renommer n'y change rien.",
+        "de": "Übertragungen von diesen Geräten werden ohne Nachfrage abgelehnt, und sie erscheinen nicht unter den Geräten in der Nähe. Die Blockierung folgt dem Schlüssel, nicht dem Namen — Umbenennen hebt sie also nicht auf.",
+        "es": "Las transferencias de estos dispositivos se rechazan sin preguntar, y no aparecen entre los dispositivos cercanos. El bloqueo sigue a la clave y no al nombre, así que cambiarles el nombre no lo deshace.",
+        "fi": "Näiden laitteiden siirrot hylätään kysymättä, eivätkä ne näy lähellä olevien laitteiden joukossa. Esto seuraa avainta eikä nimeä, joten uudelleennimeäminen ei poista sitä.",
+        "it": "I trasferimenti da questi dispositivi vengono rifiutati senza chiedere, e non compaiono tra i dispositivi nelle vicinanze. Il blocco segue la chiave e non il nome, quindi rinominarli non lo annulla.",
+        "nb_NO": "Overføringer fra disse avvises uten å spørre, og de vises ikke blant enheter i nærheten. Blokkeringen følger nøkkelen og ikke navnet, så et navnebytte opphever den ikke.",
+    },
+    "Nothing blocked": {
+        "en": "Nothing blocked", "fr": "Rien de bloqué", "de": "Nichts blockiert",
+        "es": "Nada bloqueado", "fi": "Ei estoja", "it": "Nessun blocco",
+        "nb_NO": "Ingenting blokkert",
+    },
+    "Block a device from its entry in the list, or when it asks to send you something.": {
+        "en": "Block a device from its entry in the list, or when it asks to send you something.",
+        "fr": "Bloquez un appareil depuis sa ligne dans la liste, ou au moment où il demande à vous envoyer quelque chose.",
+        "de": "Blockieren Sie ein Gerät über seinen Eintrag in der Liste oder wenn es Ihnen etwas senden möchte.",
+        "es": "Bloquea un dispositivo desde su entrada en la lista, o cuando pida enviarte algo.",
+        "fi": "Estä laite sen rivistä luettelossa tai silloin, kun se pyytää lähettää sinulle jotain.",
+        "it": "Blocca un dispositivo dalla sua voce nell'elenco, oppure quando chiede di inviarti qualcosa.",
+        "nb_NO": "Blokker en enhet fra oppføringen i listen, eller når den ber om å sende deg noe.",
+    },
+    "Unblock": {
+        "en": "Unblock", "fr": "Débloquer", "de": "Freigeben",
+        "es": "Desbloquear", "fi": "Poista esto", "it": "Sblocca",
+        "nb_NO": "Fjern blokkering",
+    },
+    "Unblocking": {
+        "en": "Unblocking", "fr": "Déblocage", "de": "Wird freigegeben",
+        "es": "Desbloqueando", "fi": "Poistetaan estoa", "it": "Sblocco in corso",
+        "nb_NO": "Fjerner blokkering",
+    },
+    "Unnamed device": {
+        "en": "Unnamed device", "fr": "Appareil sans nom",
+        "de": "Namenloses Gerät", "es": "Dispositivo sin nombre",
+        "fi": "Nimetön laite", "it": "Dispositivo senza nome",
+        "nb_NO": "Enhet uten navn",
+    },
+    "%n device(s)": {
+        "en": ["%n device", "%n devices"],
+        "fr": ["%n appareil", "%n appareils"],
+        "de": ["%n Gerät", "%n Geräte"],
+        "es": ["%n dispositivo", "%n dispositivos"],
+        "fi": ["%n laite", "%n laitetta"],
+        "it": ["%n dispositivo", "%n dispositivi"],
+        "nb_NO": ["%n enhet", "%n enheter"],
+    },
+    # --- what the services say when something goes wrong ---------------
+    #
+    # These come from C++ rather than QML. They are the messages a transfer
+    # ends on, so they are the ones most worth not leaving in English.
+    "Could not reach %1": {
+        "en": "Could not reach %1", "fr": "Impossible de joindre %1",
+        "de": "%1 nicht erreichbar", "es": "No se pudo contactar con %1",
+        "fi": "Laitteeseen %1 ei saatu yhteyttä",
+        "it": "Impossibile raggiungere %1", "nb_NO": "Fikk ikke kontakt med %1",
+    },
+    "%1 is busy with another transfer": {
+        "en": "%1 is busy with another transfer",
+        "fr": "%1 est occupé par un autre transfert",
+        "de": "%1 ist mit einer anderen Übertragung beschäftigt",
+        "es": "%1 está ocupado con otra transferencia",
+        "fi": "%1 on varattu toiseen siirtoon",
+        "it": "%1 è occupato con un altro trasferimento",
+        "nb_NO": "%1 er opptatt med en annen overføring",
+    },
+    "%1 is refusing new requests": {
+        "en": "%1 is refusing new requests",
+        "fr": "%1 refuse les nouvelles demandes",
+        "de": "%1 lehnt neue Anfragen ab",
+        "es": "%1 está rechazando nuevas solicitudes",
+        "fi": "%1 ei ota vastaan uusia pyyntöjä",
+        "it": "%1 sta rifiutando nuove richieste",
+        "nb_NO": "%1 avviser nye forespørsler",
+    },
+    "%1 refused the transfer (%2)": {
+        "en": "%1 refused the transfer (%2)",
+        "fr": "%1 a refusé le transfert (%2)",
+        "de": "%1 hat die Übertragung abgelehnt (%2)",
+        "es": "%1 rechazó la transferencia (%2)",
+        "fi": "%1 hylkäsi siirron (%2)",
+        "it": "%1 ha rifiutato il trasferimento (%2)",
+        "nb_NO": "%1 avviste overføringen (%2)",
+    },
+    "%1 sent an unreadable reply": {
+        "en": "%1 sent an unreadable reply",
+        "fr": "%1 a envoyé une réponse illisible",
+        "de": "%1 hat eine unlesbare Antwort gesendet",
+        "es": "%1 envió una respuesta ilegible",
+        "fi": "%1 lähetti vastauksen, jota ei voi lukea",
+        "it": "%1 ha inviato una risposta illeggibile",
+        "nb_NO": "%1 sendte et uleselig svar",
+    },
+    "%1 stopped the transfer": {
+        "en": "%1 stopped the transfer", "fr": "%1 a arrêté le transfert",
+        "de": "%1 hat die Übertragung angehalten",
+        "es": "%1 detuvo la transferencia", "fi": "%1 pysäytti siirron",
+        "it": "%1 ha interrotto il trasferimento",
+        "nb_NO": "%1 stoppet overføringen",
+    },
+    "%1 of %2 files were sent": {
+        "en": "%1 of %2 files were sent", "fr": "%1 fichiers sur %2 envoyés",
+        "de": "%1 von %2 Dateien gesendet",
+        "es": "Se enviaron %1 de %2 archivos",
+        "fi": "%1/%2 tiedostoa lähetetty",
+        "it": "Inviati %1 file su %2", "nb_NO": "%1 av %2 filer ble sendt",
+    },
+    "%1 of %2 files were received": {
+        "en": "%1 of %2 files were received", "fr": "%1 fichiers sur %2 reçus",
+        "de": "%1 von %2 Dateien empfangen",
+        "es": "Se recibieron %1 de %2 archivos",
+        "fi": "%1/%2 tiedostoa vastaanotettu",
+        "it": "Ricevuti %1 file su %2", "nb_NO": "%1 av %2 filer ble mottatt",
+    },
+    "Nothing was sent": {
+        "en": "Nothing was sent", "fr": "Rien n'a été envoyé",
+        "de": "Es wurde nichts gesendet", "es": "No se envió nada",
+        "fi": "Mitään ei lähetetty", "it": "Non è stato inviato nulla",
+        "nb_NO": "Ingenting ble sendt",
+    },
+    "Nothing was received": {
+        "en": "Nothing was received", "fr": "Rien n'a été reçu",
+        "de": "Es wurde nichts empfangen", "es": "No se recibió nada",
+        "fi": "Mitään ei vastaanotettu", "it": "Non è stato ricevuto nulla",
+        "nb_NO": "Ingenting ble mottatt",
+    },
+    "The transfer was stopped": {
+        "en": "The transfer was stopped", "fr": "Le transfert a été arrêté",
+        "de": "Die Übertragung wurde angehalten",
+        "es": "La transferencia se detuvo", "fi": "Siirto pysäytettiin",
+        "it": "Il trasferimento è stato interrotto",
+        "nb_NO": "Overføringen ble stoppet",
+    },
+    "Transfer was cut short": {
+        "en": "Transfer was cut short", "fr": "Le transfert a été interrompu",
+        "de": "Die Übertragung wurde abgebrochen",
+        "es": "La transferencia se interrumpió", "fi": "Siirto katkesi kesken",
+        "it": "Il trasferimento si è interrotto",
+        "nb_NO": "Overføringen ble avbrutt",
+    },
+    "The sender disconnected": {
+        "en": "The sender disconnected", "fr": "L'expéditeur s'est déconnecté",
+        "de": "Der Absender hat die Verbindung getrennt",
+        "es": "El remitente se desconectó", "fi": "Lähettäjä katkaisi yhteyden",
+        "it": "Il mittente si è disconnesso", "nb_NO": "Avsenderen koblet fra",
+    },
+    "The file arrived damaged": {
+        "en": "The file arrived damaged", "fr": "Le fichier est arrivé endommagé",
+        "de": "Die Datei kam beschädigt an", "es": "El archivo llegó dañado",
+        "fi": "Tiedosto saapui vioittuneena",
+        "it": "Il file è arrivato danneggiato",
+        "nb_NO": "Filen kom fram ødelagt",
+    },
+    "Could not open the file": {
+        "en": "Could not open the file", "fr": "Impossible d'ouvrir le fichier",
+        "de": "Die Datei konnte nicht geöffnet werden",
+        "es": "No se pudo abrir el archivo", "fi": "Tiedostoa ei voitu avata",
+        "it": "Impossibile aprire il file", "nb_NO": "Kunne ikke åpne filen",
+    },
+    "Cannot write the file": {
+        "en": "Cannot write the file", "fr": "Impossible d'écrire le fichier",
+        "de": "Die Datei kann nicht geschrieben werden",
+        "es": "No se puede escribir el archivo",
+        "fi": "Tiedostoa ei voi kirjoittaa",
+        "it": "Impossibile scrivere il file", "nb_NO": "Kan ikke skrive filen",
+    },
+    "Cannot write to the destination folder": {
+        "en": "Cannot write to the destination folder",
+        "fr": "Impossible d'écrire dans le dossier de destination",
+        "de": "In den Zielordner kann nicht geschrieben werden",
+        "es": "No se puede escribir en la carpeta de destino",
+        "fi": "Kohdekansioon ei voi kirjoittaa",
+        "it": "Impossibile scrivere nella cartella di destinazione",
+        "nb_NO": "Kan ikke skrive til målmappen",
+    },
+    "No free name for this file": {
+        "en": "No free name for this file",
+        "fr": "Aucun nom disponible pour ce fichier",
+        "de": "Kein freier Name für diese Datei",
+        "es": "No hay ningún nombre libre para este archivo",
+        "fi": "Tiedostolle ei löydy vapaata nimeä",
+        "it": "Nessun nome disponibile per questo file",
+        "nb_NO": "Ingen ledige navn for denne filen",
+    },
+    "This device is blocked": {
+        "en": "This device is blocked", "fr": "Cet appareil est bloqué",
+        "de": "Dieses Gerät ist blockiert", "es": "Este dispositivo está bloqueado",
+        "fi": "Tämä laite on estetty", "it": "Questo dispositivo è bloccato",
+        "nb_NO": "Denne enheten er blokkert",
+    },
 }
 
 
@@ -1149,14 +1378,54 @@ def unescape_qml(source):
 
 
 def collect():
-    """context -> sorted list of source strings, read from the QML."""
+    """context -> sorted list of source strings, read from the sources."""
     contexts = {}
     for path in sorted(QML_DIR.rglob("*.qml")):
         text = strip_comments(path.read_text(encoding="utf-8"))
         sources = sorted(set(unescape_qml(s) for s in QSTR.findall(text)))
         if sources:
             contexts[path.stem] = sources
+
+    for context, source in cpp_strings():
+        contexts.setdefault(context, [])
+        if source not in contexts[context]:
+            contexts[context].append(source)
+    for sources in contexts.values():
+        sources.sort()
+
     return contexts
+
+
+CPP_TR = re.compile(r'\btr\(\s*"((?:[^"\\]|\\.)*)"')
+# Out-of-line member definitions. Qt keys a tr() by the class it is called in,
+# so the enclosing definition is what decides the context - not the file name,
+# which is only usually the same thing.
+CPP_SCOPE = re.compile(r"^([A-Za-z_]\w*)::", re.M)
+
+
+def cpp_strings():
+    """(context, source) pairs the C++ asks to translate.
+
+    These reach the user only when something goes wrong - "Could not reach
+    %1", "The file arrived damaged" - which is exactly when being handed
+    English in a French install is least welcome.
+    """
+    found = set()
+    for path in sorted(SRC_DIR.glob("*.cpp")):
+        text = strip_comments(path.read_text(encoding="utf-8"))
+
+        # Walk the file once, remembering the class of the definition each
+        # tr() falls inside.
+        marks = [(m.start(), m.group(1)) for m in CPP_SCOPE.finditer(text)]
+        for match in CPP_TR.finditer(text):
+            context = ""
+            for position, name in marks:
+                if position > match.start():
+                    break
+                context = name
+            if context:
+                found.add((context, unescape_qml(match.group(1))))
+    return found
 
 
 def render(locale, contexts):
@@ -1211,7 +1480,7 @@ def main():
 
     unused = sorted(set(TRANSLATIONS) - wanted)
     if unused:
-        print("In the table but used by no QML file:")
+        print("In the table but used by no source file:")
         for source in unused:
             print(f"    {source}")
         return 1

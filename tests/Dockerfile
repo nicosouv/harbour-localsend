@@ -17,4 +17,6 @@ RUN apt-get update \
       g++ \
       pkg-config \
       python3 \
+      clang \
+      libclang-rt-18-dev \
  && rm -rf /var/lib/apt/lists/*

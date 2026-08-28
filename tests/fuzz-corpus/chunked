@@ -1,0 +1,7 @@
+POST /api/localsend/v2/upload?sessionId=a&fileId=b&token=c HTTP/1.1
+Transfer-Encoding: chunked
+
+5
+hello
+0
+

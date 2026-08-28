@@ -8,6 +8,15 @@ Page {
     objectName: "settingsPage"
     allowedOrientations: defaultAllowedOrientations
 
+    // A function call in a binding is evaluated once; the count would go stale
+    // the moment something was unblocked on the page this one pushes.
+    property int blockedCount: knownDevices.blocked().length
+
+    Connections {
+        target: knownDevices
+        onChanged: page.blockedCount = knownDevices.blocked().length
+    }
+
     SilicaFlickable {
         anchors.fill: parent
         contentHeight: settings.height
@@ -71,6 +80,15 @@ Page {
                 // Worth saying once here rather than letting somebody wonder
                 // why their device vanished from a friend's list.
                 text: qsTr("This device is identified by the fingerprint of its certificate, so changing this setting makes it look like a new device to everyone else.")
+            }
+
+            ValueButton {
+                label: qsTr("Blocked devices")
+                value: page.blockedCount > 0
+                       ? qsTr("%n device(s)", "", page.blockedCount)
+                       : qsTr("None")
+                description: qsTr("Refused before you are asked, and hidden from the device list.")
+                onClicked: pageStack.push(Qt.resolvedUrl("BlockedDevicesPage.qml"))
             }
 
             Item { width: 1; height: Theme.paddingLarge }

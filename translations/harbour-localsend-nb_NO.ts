@@ -140,6 +140,37 @@
     </message>
 </context>
 <context>
+    <name>BlockedDevicesPage</name>
+    <message>
+        <source>Block a device from its entry in the list, or when it asks to send you something.</source>
+        <translation>Blokker en enhet fra oppføringen i listen, eller når den ber om å sende deg noe.</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Blokkerte enheter</translation>
+    </message>
+    <message>
+        <source>Nothing blocked</source>
+        <translation>Ingenting blokkert</translation>
+    </message>
+    <message>
+        <source>Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.</source>
+        <translation>Overføringer fra disse avvises uten å spørre, og de vises ikke blant enheter i nærheten. Blokkeringen følger nøkkelen og ikke navnet, så et navnebytte opphever den ikke.</translation>
+    </message>
+    <message>
+        <source>Unblock</source>
+        <translation>Fjern blokkering</translation>
+    </message>
+    <message>
+        <source>Unblocking</source>
+        <translation>Fjerner blokkering</translation>
+    </message>
+    <message>
+        <source>Unnamed device</source>
+        <translation>Enhet uten navn</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -178,6 +209,10 @@
 </context>
 <context>
     <name>DeviceDelegate</name>
+    <message>
+        <source>Block this device</source>
+        <translation>Blokker denne enheten</translation>
+    </message>
     <message>
         <source>Choose files to send</source>
         <translation>Velg filer å sende</translation>
@@ -278,6 +313,10 @@
     <message>
         <source>Before</source>
         <translation>Før</translation>
+    </message>
+    <message>
+        <source>Blocking</source>
+        <translation>Blokkerer</translation>
     </message>
     <message>
         <source>Clear selection</source>
@@ -485,6 +524,10 @@
         <translation>Avslå</translation>
     </message>
     <message>
+        <source>Decline and block</source>
+        <translation>Avslå og blokker</translation>
+    </message>
+    <message>
         <source>Incoming files</source>
         <translation>Innkommende filer</translation>
     </message>
@@ -499,6 +542,45 @@
     <message>
         <source>from %1</source>
         <translation>fra %1</translation>
+    </message>
+</context>
+<context>
+    <name>ReceiveService</name>
+    <message>
+        <source>%1 of %2 files were received</source>
+        <translation>%1 av %2 filer ble mottatt</translation>
+    </message>
+    <message>
+        <source>Cannot write the file</source>
+        <translation>Kan ikke skrive filen</translation>
+    </message>
+    <message>
+        <source>Cannot write to the destination folder</source>
+        <translation>Kan ikke skrive til målmappen</translation>
+    </message>
+    <message>
+        <source>No free name for this file</source>
+        <translation>Ingen ledige navn for denne filen</translation>
+    </message>
+    <message>
+        <source>Nothing was received</source>
+        <translation>Ingenting ble mottatt</translation>
+    </message>
+    <message>
+        <source>The file arrived damaged</source>
+        <translation>Filen kom fram ødelagt</translation>
+    </message>
+    <message>
+        <source>The sender disconnected</source>
+        <translation>Avsenderen koblet fra</translation>
+    </message>
+    <message>
+        <source>Transfer stopped</source>
+        <translation>Overføringen ble stoppet</translation>
+    </message>
+    <message>
+        <source>Transfer was cut short</source>
+        <translation>Overføringen ble avbrutt</translation>
     </message>
 </context>
 <context>
@@ -558,7 +640,61 @@
     </message>
 </context>
 <context>
+    <name>SendService</name>
+    <message>
+        <source>%1 is busy with another transfer</source>
+        <translation>%1 er opptatt med en annen overføring</translation>
+    </message>
+    <message>
+        <source>%1 is refusing new requests</source>
+        <translation>%1 avviser nye forespørsler</translation>
+    </message>
+    <message>
+        <source>%1 of %2 files were sent</source>
+        <translation>%1 av %2 filer ble sendt</translation>
+    </message>
+    <message>
+        <source>%1 refused the transfer (%2)</source>
+        <translation>%1 avviste overføringen (%2)</translation>
+    </message>
+    <message>
+        <source>%1 sent an unreadable reply</source>
+        <translation>%1 sendte et uleselig svar</translation>
+    </message>
+    <message>
+        <source>%1 stopped the transfer</source>
+        <translation>%1 stoppet overføringen</translation>
+    </message>
+    <message>
+        <source>Could not open the file</source>
+        <translation>Kunne ikke åpne filen</translation>
+    </message>
+    <message>
+        <source>Could not reach %1</source>
+        <translation>Fikk ikke kontakt med %1</translation>
+    </message>
+    <message>
+        <source>Nothing was sent</source>
+        <translation>Ingenting ble sendt</translation>
+    </message>
+    <message>
+        <source>The transfer was stopped</source>
+        <translation>Overføringen ble stoppet</translation>
+    </message>
+    <message>
+        <source>This device is blocked</source>
+        <translation>Denne enheten er blokkert</translation>
+    </message>
+</context>
+<context>
     <name>SettingsPage</name>
+    <message numerus="yes">
+        <source>%n device(s)</source>
+        <translation>
+            <numerusform>%n enhet</numerusform>
+            <numerusform>%n enheter</numerusform>
+        </translation>
+    </message>
     <message>
         <source>4 to 8 digits</source>
         <translation>4 til 8 sifre</translation>
@@ -582,6 +718,10 @@
     <message>
         <source>Allow incoming files</source>
         <translation>Tillat innkommende filer</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Blokkerte enheter</translation>
     </message>
     <message>
         <source>Change the PIN</source>
@@ -624,6 +764,10 @@
         <translation>Lytteport</translation>
     </message>
     <message>
+        <source>None</source>
+        <translation>Ingen</translation>
+    </message>
+    <message>
         <source>Not set</source>
         <translation>Ikke angitt</translation>
     </message>
@@ -658,6 +802,10 @@
     <message>
         <source>Records what was sent and received, and where it was saved.</source>
         <translation>Noterer hva som ble sendt og mottatt, og hvor det ble lagret.</translation>
+    </message>
+    <message>
+        <source>Refused before you are asked, and hidden from the device list.</source>
+        <translation>Avvises før du blir spurt, og skjules fra enhetslisten.</translation>
     </message>
     <message>
         <source>Remove the PIN</source>

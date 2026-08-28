@@ -140,6 +140,37 @@
     </message>
 </context>
 <context>
+    <name>BlockedDevicesPage</name>
+    <message>
+        <source>Block a device from its entry in the list, or when it asks to send you something.</source>
+        <translation>Estä laite sen rivistä luettelossa tai silloin, kun se pyytää lähettää sinulle jotain.</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Estetyt laitteet</translation>
+    </message>
+    <message>
+        <source>Nothing blocked</source>
+        <translation>Ei estoja</translation>
+    </message>
+    <message>
+        <source>Transfers from these are refused without asking, and they are not shown among nearby devices. Blocking follows the key rather than the name, so renaming does not undo it.</source>
+        <translation>Näiden laitteiden siirrot hylätään kysymättä, eivätkä ne näy lähellä olevien laitteiden joukossa. Esto seuraa avainta eikä nimeä, joten uudelleennimeäminen ei poista sitä.</translation>
+    </message>
+    <message>
+        <source>Unblock</source>
+        <translation>Poista esto</translation>
+    </message>
+    <message>
+        <source>Unblocking</source>
+        <translation>Poistetaan estoa</translation>
+    </message>
+    <message>
+        <source>Unnamed device</source>
+        <translation>Nimetön laite</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -178,6 +209,10 @@
 </context>
 <context>
     <name>DeviceDelegate</name>
+    <message>
+        <source>Block this device</source>
+        <translation>Estä tämä laite</translation>
+    </message>
     <message>
         <source>Choose files to send</source>
         <translation>Valitse lähetettävät tiedostot</translation>
@@ -278,6 +313,10 @@
     <message>
         <source>Before</source>
         <translation>Aiemmin</translation>
+    </message>
+    <message>
+        <source>Blocking</source>
+        <translation>Estetään</translation>
     </message>
     <message>
         <source>Clear selection</source>
@@ -485,6 +524,10 @@
         <translation>Hylkää</translation>
     </message>
     <message>
+        <source>Decline and block</source>
+        <translation>Hylkää ja estä</translation>
+    </message>
+    <message>
         <source>Incoming files</source>
         <translation>Saapuvat tiedostot</translation>
     </message>
@@ -499,6 +542,45 @@
     <message>
         <source>from %1</source>
         <translation>osoitteesta %1</translation>
+    </message>
+</context>
+<context>
+    <name>ReceiveService</name>
+    <message>
+        <source>%1 of %2 files were received</source>
+        <translation>%1/%2 tiedostoa vastaanotettu</translation>
+    </message>
+    <message>
+        <source>Cannot write the file</source>
+        <translation>Tiedostoa ei voi kirjoittaa</translation>
+    </message>
+    <message>
+        <source>Cannot write to the destination folder</source>
+        <translation>Kohdekansioon ei voi kirjoittaa</translation>
+    </message>
+    <message>
+        <source>No free name for this file</source>
+        <translation>Tiedostolle ei löydy vapaata nimeä</translation>
+    </message>
+    <message>
+        <source>Nothing was received</source>
+        <translation>Mitään ei vastaanotettu</translation>
+    </message>
+    <message>
+        <source>The file arrived damaged</source>
+        <translation>Tiedosto saapui vioittuneena</translation>
+    </message>
+    <message>
+        <source>The sender disconnected</source>
+        <translation>Lähettäjä katkaisi yhteyden</translation>
+    </message>
+    <message>
+        <source>Transfer stopped</source>
+        <translation>Siirto pysäytetty</translation>
+    </message>
+    <message>
+        <source>Transfer was cut short</source>
+        <translation>Siirto katkesi kesken</translation>
     </message>
 </context>
 <context>
@@ -558,7 +640,61 @@
     </message>
 </context>
 <context>
+    <name>SendService</name>
+    <message>
+        <source>%1 is busy with another transfer</source>
+        <translation>%1 on varattu toiseen siirtoon</translation>
+    </message>
+    <message>
+        <source>%1 is refusing new requests</source>
+        <translation>%1 ei ota vastaan uusia pyyntöjä</translation>
+    </message>
+    <message>
+        <source>%1 of %2 files were sent</source>
+        <translation>%1/%2 tiedostoa lähetetty</translation>
+    </message>
+    <message>
+        <source>%1 refused the transfer (%2)</source>
+        <translation>%1 hylkäsi siirron (%2)</translation>
+    </message>
+    <message>
+        <source>%1 sent an unreadable reply</source>
+        <translation>%1 lähetti vastauksen, jota ei voi lukea</translation>
+    </message>
+    <message>
+        <source>%1 stopped the transfer</source>
+        <translation>%1 pysäytti siirron</translation>
+    </message>
+    <message>
+        <source>Could not open the file</source>
+        <translation>Tiedostoa ei voitu avata</translation>
+    </message>
+    <message>
+        <source>Could not reach %1</source>
+        <translation>Laitteeseen %1 ei saatu yhteyttä</translation>
+    </message>
+    <message>
+        <source>Nothing was sent</source>
+        <translation>Mitään ei lähetetty</translation>
+    </message>
+    <message>
+        <source>The transfer was stopped</source>
+        <translation>Siirto pysäytettiin</translation>
+    </message>
+    <message>
+        <source>This device is blocked</source>
+        <translation>Tämä laite on estetty</translation>
+    </message>
+</context>
+<context>
     <name>SettingsPage</name>
+    <message numerus="yes">
+        <source>%n device(s)</source>
+        <translation>
+            <numerusform>%n laite</numerusform>
+            <numerusform>%n laitetta</numerusform>
+        </translation>
+    </message>
     <message>
         <source>4 to 8 digits</source>
         <translation>4–8 numeroa</translation>
@@ -582,6 +718,10 @@
     <message>
         <source>Allow incoming files</source>
         <translation>Salli saapuvat tiedostot</translation>
+    </message>
+    <message>
+        <source>Blocked devices</source>
+        <translation>Estetyt laitteet</translation>
     </message>
     <message>
         <source>Change the PIN</source>
@@ -624,6 +764,10 @@
         <translation>Kuunneltava portti</translation>
     </message>
     <message>
+        <source>None</source>
+        <translation>Ei yhtään</translation>
+    </message>
+    <message>
         <source>Not set</source>
         <translation>Ei asetettu</translation>
     </message>
@@ -658,6 +802,10 @@
     <message>
         <source>Records what was sent and received, and where it was saved.</source>
         <translation>Kirjaa mitä lähetettiin ja vastaanotettiin ja minne se tallennettiin.</translation>
+    </message>
+    <message>
+        <source>Refused before you are asked, and hidden from the device list.</source>
+        <translation>Hylätään kysymättä, eivätkä näy laiteluettelossa.</translation>
     </message>
     <message>
         <source>Remove the PIN</source>

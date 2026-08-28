@@ -51,6 +51,17 @@ target_compile_definitions(localsend PUBLIC APP_VERSION="0.0.0-test")
 
 enable_testing()
 
+# libFuzzer is clang-only, so this target appears only when the compiler can
+# provide it. Everything else still builds under gcc.
+option(FUZZ "Build the fuzz targets (requires clang)" OFF)
+if(FUZZ)
+    add_executable(fuzz_http fuzz_http.cpp)
+    target_link_libraries(fuzz_http PRIVATE localsend)
+    target_compile_options(fuzz_http PRIVATE
+        -fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer -g)
+    target_link_options(fuzz_http PRIVATE -fsanitize=fuzzer,address,undefined)
+endif()
+
 foreach(name tst_protocol tst_httpserver tst_models tst_transfer tst_security)
     add_executable(${name} ${name}.cpp)
     target_link_libraries(${name} PRIVATE localsend Qt5::Test)

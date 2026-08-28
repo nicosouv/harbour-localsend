@@ -124,6 +124,14 @@ bool DeviceModel::upsert(const DeviceInfo &device)
     if (!device.isValid() || device.address.isEmpty())
         return false;
 
+    // A blocked device is not shown at all. Leaving it visible but inert
+    // would invite tapping it and wondering why nothing happens; the settings
+    // page is where blocks are undone.
+    if (m_known && m_known->isBlocked(device.fingerprint)) {
+        remove(device.fingerprint);
+        return false;
+    }
+
     DeviceInfo updated = device;
     updated.lastSeen = QDateTime::currentDateTime();
 
