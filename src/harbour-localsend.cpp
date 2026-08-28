@@ -18,6 +18,7 @@
 #include "historymodel.h"
 #include "knowndevices.h"
 #include "receiveservice.h"
+#include "securestore.h"
 #include "selectionmodel.h"
 #include "sendservice.h"
 #include "transfermodel.h"
@@ -29,6 +30,10 @@ int main(int argc, char *argv[])
     app->setApplicationName(QStringLiteral("harbour-localsend"));
 
     QQuickView *view = SailfishApp::createView();
+
+    // Before AppSettings, which loads the TLS identity through it. A failure
+    // here is not fatal: the store falls back to plaintext and reports it.
+    SecureStore::instance().open();
 
     AppSettings settings;
 

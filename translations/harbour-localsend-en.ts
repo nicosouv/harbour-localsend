@@ -16,6 +16,10 @@
         <translation>Devices find each other with multicast. Plenty of networks block it — guest Wi-Fi almost always does. When that happens, Scan network on the main page finds them the slow way instead.</translation>
     </message>
     <message>
+        <source>Encrypted with a stored key</source>
+        <translation>Encrypted with a stored key</translation>
+    </message>
+    <message>
         <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
         <translation>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</translation>
     </message>
@@ -48,12 +52,20 @@
         <translation>Not affiliated with the LocalSend project. Released under the MIT licence.</translation>
     </message>
     <message>
+        <source>Owner-only files</source>
+        <translation>Owner-only files</translation>
+    </message>
+    <message>
         <source>Protocol</source>
         <translation>Protocol</translation>
     </message>
     <message>
         <source>Source and issues</source>
         <translation>Source and issues</translation>
+    </message>
+    <message>
+        <source>Stored data</source>
+        <translation>Stored data</translation>
     </message>
     <message>
         <source>The LocalSend project</source>

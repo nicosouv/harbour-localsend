@@ -13,6 +13,7 @@
 #include <openssl/x509v3.h>
 
 #include "crypto.h"
+#include "securestore.h"
 
 namespace {
 
@@ -36,32 +37,14 @@ const char *SubjectCommonName = "LocalSend";
 // readable by anyone else.
 bool writePrivate(const QString &path, const QByteArray &data)
 {
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return false;
-    file.close();
-
-    if (!file.setPermissions(QFile::ReadOwner | QFile::WriteOwner)) {
-        file.remove();
-        return false;
-    }
-
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return false;
-    const bool written = file.write(data) == data.size();
-    file.close();
-
-    if (!written)
-        file.remove();
-    return written;
+    // Through the store, so the key is encrypted whenever the platform will
+    // hold a key for us. It sets owner-only permissions either way.
+    return SecureStore::instance().write(path, data);
 }
 
 QByteArray readAll(const QString &path)
 {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly))
-        return QByteArray();
-    return file.readAll();
+    return SecureStore::instance().read(path);
 }
 
 } // namespace

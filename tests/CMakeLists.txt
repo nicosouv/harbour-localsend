@@ -26,6 +26,7 @@ add_library(localsend STATIC
     ${SRC_DIR}/knowndevices.cpp
     ${SRC_DIR}/protocol.cpp
     ${SRC_DIR}/ratelimiter.cpp
+    ${SRC_DIR}/securestore.cpp
     ${SRC_DIR}/receiveservice.cpp
     ${SRC_DIR}/selectionmodel.cpp
     ${SRC_DIR}/sendservice.cpp

@@ -16,6 +16,19 @@ QT += network
 # libcrypto is used - QSslSocket is Qt's, and no SSL_* function is called.
 LIBS += -lcrypto
 
+# Sailfish Secrets holds the key the app's own files are encrypted with, so a
+# copy of the data directory decrypts to nothing. Guarded because every lane
+# that is not the device lacks it: without it SecureStore writes in the clear
+# and says so, rather than the build failing.
+packagesExist(sailfishsecrets) {
+    CONFIG += link_pkgconfig
+    PKGCONFIG += sailfishsecrets
+    DEFINES += HAVE_SAILFISH_SECRETS
+    message("Sailfish Secrets found: app data will be encrypted at rest")
+} else {
+    warning("Sailfish Secrets not found: app data will be stored in the clear")
+}
+
 # Version is passed by the spec file (%qmake5 VERSION=%{version})
 isEmpty(VERSION) {
     VERSION = 0.1.0
@@ -34,6 +47,7 @@ SOURCES += src/harbour-localsend.cpp \
     src/knowndevices.cpp \
     src/protocol.cpp \
     src/ratelimiter.cpp \
+    src/securestore.cpp \
     src/receiveservice.cpp \
     src/selectionmodel.cpp \
     src/sendservice.cpp \
@@ -51,6 +65,7 @@ HEADERS += src/appsettings.h \
     src/knowndevices.h \
     src/protocol.h \
     src/ratelimiter.h \
+    src/securestore.h \
     src/receiveservice.h \
     src/selectionmodel.h \
     src/sendservice.h \

@@ -16,6 +16,10 @@
         <translation>Los dispositivos se encuentran por multidifusión. Muchas redes la bloquean, y el wifi de invitados casi siempre. Cuando pasa, Explorar la red desde la pantalla principal los encuentra por la vía lenta.</translation>
     </message>
     <message>
+        <source>Encrypted with a stored key</source>
+        <translation>Cifrados con una clave en el almacén</translation>
+    </message>
+    <message>
         <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
         <translation>El cifrado está desactivado: las transferencias usan HTTP sin cifrar en el puerto %1 y las puede leer cualquiera que observe la red. En casa o en tu propio punto de acceso no es nadie; en el wifi de una cafetería o una oficina puede que sí.</translation>
     </message>
@@ -48,12 +52,20 @@
         <translation>Sin relación con el proyecto LocalSend. Publicado con licencia MIT.</translation>
     </message>
     <message>
+        <source>Owner-only files</source>
+        <translation>Archivos solo para el propietario</translation>
+    </message>
+    <message>
         <source>Protocol</source>
         <translation>Protocolo</translation>
     </message>
     <message>
         <source>Source and issues</source>
         <translation>Código y problemas</translation>
+    </message>
+    <message>
+        <source>Stored data</source>
+        <translation>Datos guardados</translation>
     </message>
     <message>
         <source>The LocalSend project</source>

@@ -137,8 +137,21 @@ What the app does on top of that:
 | | |
 | --- | --- |
 | PIN | never stored — salted PBKDF2-SHA256, 120 000 iterations |
-| TLS private key, settings, history, known devices | owner-only (`0600`), inside the Sailjail sandbox, so no other app can read them |
+| TLS private key, history, known devices | **AES-256-GCM**, with the key held by `sailfishsecretsd` rather than by us |
+| Settings (alias, port, folder) | owner-only, plaintext — nothing secret in them |
 | Received files | your download folder, ordinary permissions — they are yours to open |
+
+The point of putting the key in the platform keystore is narrow and worth
+stating exactly: **a copy of the app's data directory decrypts to nothing.** A
+backup, a pulled image, an unpacked archive — none of them carry the key. It
+does *not* stop somebody who can run code as you, and no design could: the app
+has to read its own keys with nobody present, since files arrive while the
+phone is locked, so anything it can unwrap unattended an attacker in the same
+position can unwrap too. Encrypting with a key stored in the next file along
+would have been theatre, and is not what happens here.
+
+If the keystore does not answer, the files are written in the clear rather
+than the app refusing to start. The About page says which mode is in force.
 
 The history holds file names, peer names and destination paths. If that
 metadata is unwelcome, it can be turned off in Settings.

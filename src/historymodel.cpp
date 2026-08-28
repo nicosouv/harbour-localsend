@@ -5,8 +5,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
 #include <QStandardPaths>
+
+#include "securestore.h"
 
 namespace {
 
@@ -37,11 +38,8 @@ QString HistoryModel::storagePath() const
 
 void HistoryModel::load()
 {
-    QFile file(storagePath());
-    if (!file.open(QIODevice::ReadOnly))
-        return;
-
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    const QJsonDocument document = QJsonDocument::fromJson(
+        SecureStore::instance().read(storagePath()));
     if (!document.isArray())
         return;
 
@@ -93,15 +91,11 @@ void HistoryModel::save()
         array.append(object);
     }
 
-    // A crash mid-write would otherwise leave a truncated file that parses as
-    // nothing, silently wiping the whole log.
-    QSaveFile file(storagePath());
-    if (!file.open(QIODevice::WriteOnly))
-        return;
-    file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
-    file.commit();
-
-    QFile::setPermissions(storagePath(), QFile::ReadOwner | QFile::WriteOwner);
+    // Encrypted when a keystore held a key for us, and written through a
+    // temporary either way: a crash mid-write would otherwise leave a
+    // truncated file that parses as nothing, silently wiping the whole log.
+    SecureStore::instance().write(storagePath(),
+                                  QJsonDocument(array).toJson(QJsonDocument::Compact));
 }
 
 int HistoryModel::rowCount(const QModelIndex &parent) const

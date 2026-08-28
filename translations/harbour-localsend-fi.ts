@@ -16,6 +16,10 @@
         <translation>Laitteet löytävät toisensa multicastilla. Monet verkot estävät sen — vierasverkko lähes aina. Silloin päänäkymän Etsi verkosta löytää ne hitaammalla tavalla.</translation>
     </message>
     <message>
+        <source>Encrypted with a stored key</source>
+        <translation>Salattu avainsäilöön talletetulla avaimella</translation>
+    </message>
+    <message>
         <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
         <translation>Salaus on pois päältä: siirrot kulkevat salaamattomana HTTP:nä portissa %1 ja ovat kenen tahansa verkkoa seuraavan luettavissa. Kotiverkossa tai omassa jakoyhteydessä se ei ole kukaan; kahvilan tai toimiston wifissä ehkä on.</translation>
     </message>
@@ -48,12 +52,20 @@
         <translation>Ei yhteydessä LocalSend-projektiin. Julkaistu MIT-lisenssillä.</translation>
     </message>
     <message>
+        <source>Owner-only files</source>
+        <translation>Vain omistajan luettavat tiedostot</translation>
+    </message>
+    <message>
         <source>Protocol</source>
         <translation>Protokolla</translation>
     </message>
     <message>
         <source>Source and issues</source>
         <translation>Lähdekoodi ja virheraportit</translation>
+    </message>
+    <message>
+        <source>Stored data</source>
+        <translation>Tallennetut tiedot</translation>
     </message>
     <message>
         <source>The LocalSend project</source>

@@ -16,6 +16,10 @@
         <translation>Geräte finden einander per Multicast. Viele Netze blockieren das — Gäste-WLAN fast immer. Dann findet Netz absuchen auf der Hauptseite sie stattdessen auf dem langsamen Weg.</translation>
     </message>
     <message>
+        <source>Encrypted with a stored key</source>
+        <translation>Mit hinterlegtem Schlüssel verschlüsselt</translation>
+    </message>
+    <message>
         <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
         <translation>Die Verschlüsselung ist aus: Übertragungen laufen über unverschlüsseltes HTTP auf Port %1 und sind für jeden lesbar, der das Netz mitlesen kann. Im Heimnetz oder am eigenen Hotspot ist das niemand, im Café- oder Büro-WLAN womöglich schon.</translation>
     </message>
@@ -48,12 +52,20 @@
         <translation>Nicht mit dem LocalSend-Projekt verbunden. Veröffentlicht unter der MIT-Lizenz.</translation>
     </message>
     <message>
+        <source>Owner-only files</source>
+        <translation>Nur für den Eigentümer lesbar</translation>
+    </message>
+    <message>
         <source>Protocol</source>
         <translation>Protokoll</translation>
     </message>
     <message>
         <source>Source and issues</source>
         <translation>Quellcode und Fehlermeldungen</translation>
+    </message>
+    <message>
+        <source>Stored data</source>
+        <translation>Gespeicherte Daten</translation>
     </message>
     <message>
         <source>The LocalSend project</source>

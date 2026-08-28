@@ -10,6 +10,7 @@
 
 #include "crypto.h"
 #include "protocol.h"
+#include "securestore.h"
 
 #ifndef APP_VERSION
 #define APP_VERSION "0.0.0"
@@ -358,6 +359,11 @@ QString AppSettings::transportError() const
 const Certificate &AppSettings::identity() const
 {
     return m_identity;
+}
+
+bool AppSettings::isStorageEncrypted() const
+{
+    return SecureStore::instance().isEncrypting();
 }
 
 bool AppSettings::notificationsEnabled() const

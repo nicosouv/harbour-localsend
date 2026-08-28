@@ -16,6 +16,10 @@
         <translation>Les appareils se trouvent par multicast. Beaucoup de réseaux le bloquent — le Wi-Fi invité presque toujours. Dans ce cas, Balayer le réseau depuis l'écran principal les trouve par la méthode lente.</translation>
     </message>
     <message>
+        <source>Encrypted with a stored key</source>
+        <translation>Chiffrées avec une clé en trousseau</translation>
+    </message>
+    <message>
         <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
         <translation>Le chiffrement est désactivé : les transferts passent en HTTP en clair sur le port %1 et sont lisibles par quiconque peut observer le réseau. Chez vous ou sur votre partage de connexion, cela ne concerne personne ; sur le Wi-Fi d'un café ou d'un bureau, peut-être si.</translation>
     </message>
@@ -48,12 +52,20 @@
         <translation>Sans lien avec le projet LocalSend. Distribué sous licence MIT.</translation>
     </message>
     <message>
+        <source>Owner-only files</source>
+        <translation>Fichiers réservés au propriétaire</translation>
+    </message>
+    <message>
         <source>Protocol</source>
         <translation>Protocole</translation>
     </message>
     <message>
         <source>Source and issues</source>
         <translation>Code source et signalements</translation>
+    </message>
+    <message>
+        <source>Stored data</source>
+        <translation>Données stockées</translation>
     </message>
     <message>
         <source>The LocalSend project</source>

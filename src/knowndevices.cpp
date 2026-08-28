@@ -4,10 +4,10 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
 #include <QStandardPaths>
 
 #include "crypto.h"
+#include "securestore.h"
 
 KnownDevices::KnownDevices(QObject *parent)
     : QObject(parent)
@@ -25,11 +25,8 @@ QString KnownDevices::storagePath() const
 
 void KnownDevices::load()
 {
-    QFile file(storagePath());
-    if (!file.open(QIODevice::ReadOnly))
-        return;
-
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    const QJsonDocument document = QJsonDocument::fromJson(
+        SecureStore::instance().read(storagePath()));
     if (!document.isObject())
         return;
 
@@ -63,13 +60,11 @@ void KnownDevices::save()
         root.insert(it.key(), value);
     }
 
-    QSaveFile file(storagePath());
-    if (!file.open(QIODevice::WriteOnly))
-        return;
-    file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
-    file.commit();
-
-    QFile::setPermissions(storagePath(), QFile::ReadOwner | QFile::WriteOwner);
+    // Authenticated encryption matters here beyond confidentiality: this file
+    // decides which key is allowed to wear which name, so an attacker able to
+    // edit it could silently retire the impersonation warning.
+    SecureStore::instance().write(storagePath(),
+                                  QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
 bool KnownDevices::isKnown(const QString &fingerprint) const

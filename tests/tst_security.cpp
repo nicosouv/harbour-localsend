@@ -6,6 +6,7 @@
 #include "crypto.h"
 #include "knowndevices.h"
 #include "ratelimiter.h"
+#include "securestore.h"
 
 // The security primitives, tested for the properties they are relied on for
 // rather than for "does it return something".
@@ -17,6 +18,12 @@ private slots:
     void randomIsAvailableAndUnpredictable();
     void comparisonIsExactAndLengthSafe();
     void derivedKeysDependOnBothInputs();
+
+    void encryptionRoundTrips();
+    void refusesAWrongKeyOrATamperedBlob();
+    void storeKeepsPlaintextOffDisk();
+    void storeReadsFilesWrittenBeforeThereWasAKey();
+    void storeFallsBackWhenThereIsNoKey();
 
     void generatesAUsableIdentity();
     void keepsTheSameIdentityAcrossRestarts();
@@ -82,6 +89,128 @@ void TestSecurity::derivedKeysDependOnBothInputs()
     QVERIFY(Crypto::deriveKey(QStringLiteral("4270"), salt, 1000, 32) != key);
     QVERIFY(Crypto::deriveKey(QStringLiteral("4269"), other, 1000, 32) != key);
     QVERIFY(Crypto::deriveKey(QStringLiteral("4269"), salt, 2000, 32) != key);
+}
+
+void TestSecurity::encryptionRoundTrips()
+{
+    const QByteArray key = Crypto::randomBytes(Crypto::KeyBytes);
+    const QByteArray plaintext = "the quick brown fox";
+
+    const QByteArray sealed = Crypto::encrypt(plaintext, key);
+    QVERIFY(!sealed.isEmpty());
+    QVERIFY(!sealed.contains(plaintext));
+    QCOMPARE(Crypto::decrypt(sealed, key), plaintext);
+
+    // A fresh nonce every time, so the same input twice does not produce the
+    // same bytes and leak that it was repeated.
+    QVERIFY(Crypto::encrypt(plaintext, key) != sealed);
+
+    // Empty input is a legitimate thing to store: an emptied history writes
+    // an empty array, and refusing it would leave the old contents on disk.
+    const QByteArray sealedEmpty = Crypto::encrypt(QByteArray(), key);
+    QVERIFY(!sealedEmpty.isEmpty());
+    QCOMPARE(Crypto::decrypt(sealedEmpty, key), QByteArray());
+
+    QVERIFY(Crypto::encrypt(plaintext, QByteArray("short")).isEmpty());
+}
+
+void TestSecurity::refusesAWrongKeyOrATamperedBlob()
+{
+    const QByteArray key = Crypto::randomBytes(Crypto::KeyBytes);
+    const QByteArray other = Crypto::randomBytes(Crypto::KeyBytes);
+    const QByteArray sealed = Crypto::encrypt("known devices go here", key);
+
+    QVERIFY(Crypto::decrypt(sealed, other).isEmpty());
+
+    // Authentication is the point for the known-devices file: an attacker who
+    // could edit it undetected could rewrite which key owns which name, which
+    // is exactly the record the impersonation warning rests on.
+    QByteArray tampered = sealed;
+    tampered[tampered.size() - 1] = char(tampered.at(tampered.size() - 1) ^ 0x01);
+    QVERIFY(Crypto::decrypt(tampered, key).isEmpty());
+
+    QByteArray flippedBody = sealed;
+    flippedBody[20] = char(flippedBody.at(20) ^ 0x01);
+    QVERIFY(Crypto::decrypt(flippedBody, key).isEmpty());
+
+    QVERIFY(Crypto::decrypt(QByteArray("too short"), key).isEmpty());
+}
+
+void TestSecurity::storeKeepsPlaintextOffDisk()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.path() + QStringLiteral("/secret.json");
+
+    SecureStore::setMasterKeyForTesting(Crypto::randomBytes(Crypto::KeyBytes));
+    SecureStore &store = SecureStore::instance();
+    QVERIFY(store.open());
+    QVERIFY(store.isEncrypting());
+
+    const QByteArray contents = "{\"peerAlias\":\"Nico's MacBook\"}";
+    QVERIFY(store.write(path, contents));
+    QCOMPARE(store.read(path), contents);
+
+    // The whole point: a copy of this file is worth nothing on its own.
+    QFile raw(path);
+    QVERIFY(raw.open(QIODevice::ReadOnly));
+    const QByteArray onDisk = raw.readAll();
+    QVERIFY(!onDisk.contains("MacBook"));
+    QVERIFY(!onDisk.contains("peerAlias"));
+
+    const QFile::Permissions permissions = QFile::permissions(path);
+    QVERIFY(!(permissions & QFile::ReadGroup));
+    QVERIFY(!(permissions & QFile::ReadOther));
+
+    SecureStore::setMasterKeyForTesting(QByteArray());
+}
+
+void TestSecurity::storeReadsFilesWrittenBeforeThereWasAKey()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.path() + QStringLiteral("/legacy.json");
+
+    const QByteArray legacy = "{\"written\":\"by an older build\"}";
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write(legacy);
+    file.close();
+
+    // An install that gains a keystore must not lose its history and its
+    // known devices, so a plaintext file is still read and only becomes
+    // encrypted on the next write.
+    SecureStore::setMasterKeyForTesting(Crypto::randomBytes(Crypto::KeyBytes));
+    SecureStore &store = SecureStore::instance();
+    QVERIFY(store.open());
+    QCOMPARE(store.read(path), legacy);
+
+    QVERIFY(store.write(path, legacy));
+    QFile reread(path);
+    QVERIFY(reread.open(QIODevice::ReadOnly));
+    QVERIFY(!reread.readAll().contains("older build"));
+
+    SecureStore::setMasterKeyForTesting(QByteArray());
+}
+
+void TestSecurity::storeFallsBackWhenThereIsNoKey()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.path() + QStringLiteral("/plain.json");
+
+    SecureStore::setMasterKeyForTesting(QByteArray());
+    SecureStore &store = SecureStore::instance();
+
+    // No keystore is not a reason to refuse to run: a transfer app that will
+    // not start because a daemon is missing has failed at its job.
+    QVERIFY(!store.open());
+    QVERIFY(!store.isEncrypting());
+    QVERIFY(!store.lastError().isEmpty());
+
+    const QByteArray contents = "{\"still\":\"usable\"}";
+    QVERIFY(store.write(path, contents));
+    QCOMPARE(store.read(path), contents);
 }
 
 void TestSecurity::generatesAUsableIdentity()

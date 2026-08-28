@@ -23,6 +23,7 @@ PkgBR:
   - pkgconfig(Qt5Quick)
   - pkgconfig(Qt5Network)
   - pkgconfig(openssl)
+  - pkgconfig(sailfishsecrets)
   - desktop-file-utils
 Requires:
   - sailfishsilica-qt5 >= 0.10.9

@@ -40,6 +40,10 @@ class AppSettings : public QObject
     Q_PROPERTY(bool encrypted READ isEncrypted NOTIFY secureTransportChanged)
     Q_PROPERTY(QString transportError READ transportError NOTIFY secureTransportChanged)
 
+    // Whether the app's own files are encrypted on disk. Reported rather than
+    // assumed: it depends on the platform keystore answering.
+    Q_PROPERTY(bool storageEncrypted READ isStorageEncrypted CONSTANT)
+
     Q_PROPERTY(bool notificationsEnabled READ notificationsEnabled WRITE setNotificationsEnabled NOTIFY notificationsEnabledChanged)
     Q_PROPERTY(bool keepAwake READ keepAwake WRITE setKeepAwake NOTIFY keepAwakeChanged)
     Q_PROPERTY(bool historyEnabled READ historyEnabled WRITE setHistoryEnabled NOTIFY historyEnabledChanged)
@@ -90,6 +94,8 @@ public:
 
     // The TLS identity, valid only while isEncrypted().
     const Certificate &identity() const;
+
+    bool isStorageEncrypted() const;
 
     bool notificationsEnabled() const;
     void setNotificationsEnabled(bool enabled);

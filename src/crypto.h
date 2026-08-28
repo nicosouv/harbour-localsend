@@ -47,6 +47,22 @@ bool equalsFold(const QString &left, const QString &right);
 QByteArray deriveKey(const QString &secret, const QByteArray &salt,
                      int iterations, int length);
 
+// AES-256-GCM, for the files this app keeps on disk.
+//
+// Authenticated on purpose: without the tag, a stored file could be edited by
+// anyone who could reach it, and for the known-devices list that would mean
+// silently rewriting which key belongs to which name - the one record whose
+// integrity the impersonation warning depends on.
+//
+// The nonce is generated per call and prepended to the output, so a caller
+// only ever handles one opaque blob.
+const int KeyBytes = 32;
+
+QByteArray encrypt(const QByteArray &plaintext, const QByteArray &key);
+// Empty on any failure, including a wrong key or a tampered blob. Callers
+// cannot tell those apart, and should not: both mean "do not use this".
+QByteArray decrypt(const QByteArray &blob, const QByteArray &key);
+
 // SHA-256 of `data` as uppercase hex.
 //
 // Uppercase because that is what the reference implementation produces and

@@ -47,6 +47,11 @@ Page {
                 value: appSettings.encrypted ? qsTr("HTTPS (encrypted)")
                                              : qsTr("HTTP (not encrypted)")
             }
+            DetailItem {
+                label: qsTr("Stored data")
+                value: appSettings.storageEncrypted ? qsTr("Encrypted with a stored key")
+                                                    : qsTr("Owner-only files")
+            }
             SectionHeader { text: qsTr("Fingerprint") }
 
             Label {

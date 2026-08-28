@@ -16,6 +16,10 @@
         <translation>Enheter finner hverandre med multicast. Mange nettverk blokkerer det — gjeste-wifi nesten alltid. Da finner Søk i nettverket på hovedsiden dem på den langsomme måten i stedet.</translation>
     </message>
     <message>
+        <source>Encrypted with a stored key</source>
+        <translation>Kryptert med en lagret nøkkel</translation>
+    </message>
+    <message>
         <source>Encryption is off, so transfers use plain HTTP on port %1 and are readable by anyone who can watch the network. On a home network or your own hotspot that is nobody; on café or office Wi-Fi it may not be.</source>
         <translation>Kryptering er av: overføringer går som ukryptert HTTP på port %1 og kan leses av alle som følger med på nettverket. Hjemme eller på ditt eget delte nett er det ingen; på kafé- eller kontor-wifi kan det være noen.</translation>
     </message>
@@ -48,12 +52,20 @@
         <translation>Ikke tilknyttet LocalSend-prosjektet. Utgitt under MIT-lisensen.</translation>
     </message>
     <message>
+        <source>Owner-only files</source>
+        <translation>Filer kun for eieren</translation>
+    </message>
+    <message>
         <source>Protocol</source>
         <translation>Protokoll</translation>
     </message>
     <message>
         <source>Source and issues</source>
         <translation>Kildekode og feilmeldinger</translation>
+    </message>
+    <message>
+        <source>Stored data</source>
+        <translation>Lagrede data</translation>
     </message>
     <message>
         <source>The LocalSend project</source>
