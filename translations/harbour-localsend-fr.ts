@@ -48,6 +48,10 @@
         <translation>LocalSend v%1</translation>
     </message>
     <message>
+        <source>Made with &lt;3 for Sailfish OS</source>
+        <translation>Fait avec &lt;3 pour Sailfish OS</translation>
+    </message>
+    <message>
         <source>Not affiliated with the LocalSend project. Released under the MIT licence.</source>
         <translation>Sans lien avec le projet LocalSend. Distribué sous licence MIT.</translation>
     </message>

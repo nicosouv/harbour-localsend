@@ -1358,6 +1358,15 @@ TRANSLATIONS = {
         "it": "Nessun nome disponibile per questo file",
         "nb_NO": "Ingen ledige navn for denne filen",
     },
+    "Made with <3 for Sailfish OS": {
+        "en": "Made with <3 for Sailfish OS",
+        "fr": "Fait avec <3 pour Sailfish OS",
+        "de": "Mit <3 für Sailfish OS gemacht",
+        "es": "Hecho con <3 para Sailfish OS",
+        "fi": "Tehty <3:lla Sailfish OS:lle",
+        "it": "Fatto con <3 per Sailfish OS",
+        "nb_NO": "Laget med <3 for Sailfish OS",
+    },
     "This device is blocked": {
         "en": "This device is blocked", "fr": "Cet appareil est bloqué",
         "de": "Dieses Gerät ist blockiert", "es": "Este dispositivo está bloqueado",

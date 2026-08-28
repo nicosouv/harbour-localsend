@@ -135,6 +135,21 @@ Page {
             }
 
             Item { width: 1; height: Theme.paddingLarge }
+
+            // The heart is written out rather than drawn: the tiny font here
+            // is the theme's, and there is no promise it carries U+2665.
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - Theme.horizontalPageMargin * 2
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.highlightColor
+                text: qsTr("Made with <3 for Sailfish OS")
+                textFormat: Text.PlainText
+            }
+
+            Item { width: 1; height: Theme.paddingLarge }
         }
 
         VerticalScrollDecorator {}
