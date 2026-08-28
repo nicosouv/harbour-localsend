@@ -18,6 +18,8 @@ BuildRequires:  pkgconfig(Qt5Network)
 # Qt cannot generate an X.509 certificate, and each device is its own
 # authority, so the TLS identity is built against OpenSSL directly.
 BuildRequires:  pkgconfig(openssl)
+BuildRequires:  pkgconfig(sailfishsecrets)
+BuildRequires:  pkgconfig(sailfishcrypto)
 BuildRequires:  desktop-file-utils
 
 %description
