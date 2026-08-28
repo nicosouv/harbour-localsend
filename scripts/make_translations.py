@@ -191,12 +191,6 @@ TRANSLATIONS = {
         "fi": "Lähellä olevat laitteet", "it": "Dispositivi nelle vicinanze",
         "nb_NO": "Enheter i nærheten",
     },
-    "Looking for devices": {
-        "en": "Looking for devices", "fr": "Recherche d'appareils",
-        "de": "Suche nach Geräten", "es": "Buscando dispositivos",
-        "fi": "Etsitään laitteita", "it": "Ricerca di dispositivi",
-        "nb_NO": "Ser etter enheter",
-    },
     "Nobody yet": {
         "en": "Nobody yet", "fr": "Personne pour l'instant",
         "de": "Noch niemand", "es": "Nadie todavía",

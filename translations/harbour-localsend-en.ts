@@ -233,10 +233,6 @@
         <translation>Look again</translation>
     </message>
     <message>
-        <source>Looking for devices</source>
-        <translation>Looking for devices</translation>
-    </message>
-    <message>
         <source>Model</source>
         <translation>Model</translation>
     </message>

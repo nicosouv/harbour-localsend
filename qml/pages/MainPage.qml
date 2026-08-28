@@ -210,10 +210,7 @@ Page {
                 }
             }
 
-            SectionHeader {
-                text: deviceModel.count > 0 ? qsTr("Nearby devices")
-                                            : qsTr("Looking for devices")
-            }
+            SectionHeader { text: qsTr("Nearby devices") }
 
             // --- sweep progress -----------------------------------------
 
@@ -254,6 +251,49 @@ Page {
                     }
                 }
             }
+
+            // --- nothing found yet ----------------------------------------
+            //
+            // Part of the header rather than a ViewPlaceholder. Silica centres
+            // a placeholder on the view and takes no account of the header, so
+            // with a header this tall it lands squarely on top of the radar and
+            // the device name. Here it simply follows them.
+            Item {
+                width: parent.width
+                height: emptyState.height + Theme.paddingLarge * 2
+                visible: deviceModel.count === 0 && !discovery.scanning
+
+                Column {
+                    id: emptyState
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        margins: Theme.horizontalPageMargin
+                        verticalCenter: parent.verticalCenter
+                    }
+                    spacing: Theme.paddingMedium
+
+                    Label {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        text: qsTr("Nobody yet")
+                        font.pixelSize: Theme.fontSizeLarge
+                        color: Theme.secondaryHighlightColor
+                    }
+
+                    Label {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: Theme.secondaryColor
+                        text: appSettings.receiveEnabled
+                            ? qsTr("Open LocalSend on another device on the same network. It should turn up here within a few seconds.")
+                            : qsTr("Receiving is off. Turn it back on in Settings to be found.")
+                    }
+                }
+            }
         }
 
         delegate: DeviceDelegate {
@@ -269,14 +309,6 @@ Page {
             onSendRequested: page.startSend(deviceModel.get(index))
             onDetailsRequested: pageStack.push(deviceDetailComponent,
                                                { device: deviceModel.get(index) })
-        }
-
-        ViewPlaceholder {
-            enabled: deviceModel.count === 0 && !discovery.scanning
-            text: qsTr("Nobody yet")
-            hintText: appSettings.receiveEnabled
-                ? qsTr("Open LocalSend on another device on the same network. It should turn up here within a few seconds.")
-                : qsTr("Receiving is off. Turn it back on in Settings to be found.")
         }
 
         VerticalScrollDecorator {}

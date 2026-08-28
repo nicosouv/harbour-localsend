@@ -233,10 +233,6 @@
         <translation>Se etter igjen</translation>
     </message>
     <message>
-        <source>Looking for devices</source>
-        <translation>Ser etter enheter</translation>
-    </message>
-    <message>
         <source>Model</source>
         <translation>Modell</translation>
     </message>

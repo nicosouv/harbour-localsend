@@ -233,10 +233,6 @@
         <translation>Buscar de nuevo</translation>
     </message>
     <message>
-        <source>Looking for devices</source>
-        <translation>Buscando dispositivos</translation>
-    </message>
-    <message>
         <source>Model</source>
         <translation>Modelo</translation>
     </message>

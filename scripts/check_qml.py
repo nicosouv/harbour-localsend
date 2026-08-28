@@ -205,8 +205,36 @@ def check_qstr_in_library(path, lines):
             if "qsTr(" in strip_comments(raw)]
 
 
+COMPOSITE_HEADER = re.compile(r"^\s*header\s*:\s*(Column|Item|Row|Grid)\b")
+
+
+def check_placeholder_under_tall_header(path, lines):
+    """A ViewPlaceholder in a view whose header is more than a PageHeader.
+
+    Silica centres a placeholder on the view itself and takes no account of
+    the header, so the two occupy the same space. With a bare PageHeader
+    nobody notices; with a header that is a Column of its own, the placeholder
+    lands on top of it and the two texts render over each other.
+
+    MainPage did exactly this: "Nobody yet" and its hint were drawn straight
+    through the radar, the device name and the address. Put the empty state in
+    the header's own flow instead, where it cannot overlap anything.
+    """
+    text = "\n".join(strip_comments(line) for line in lines)
+    if "ViewPlaceholder" not in text:
+        return []
+    if not any(COMPOSITE_HEADER.search(line) for line in lines):
+        return []
+
+    return [(number, raw.strip())
+            for number, raw in enumerate(lines, start=1)
+            if "ViewPlaceholder" in strip_comments(raw)]
+
+
 QML_CHECKS = [
     ("id shadows a context property", check_shadowed_context_property),
+    ("ViewPlaceholder overlaps a composite header",
+     check_placeholder_under_tall_header),
     ("explicit x/y fights an anchor", check_anchor_conflicts),
     ("property shadows one Item already has", check_shadowed_item_property),
     ("component name shadows a platform type", check_shadowed_platform_type),

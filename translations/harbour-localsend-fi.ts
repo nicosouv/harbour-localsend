@@ -233,10 +233,6 @@
         <translation>Etsi uudelleen</translation>
     </message>
     <message>
-        <source>Looking for devices</source>
-        <translation>Etsitään laitteita</translation>
-    </message>
-    <message>
         <source>Model</source>
         <translation>Malli</translation>
     </message>
