@@ -70,7 +70,15 @@ Page {
                 onClicked: pageStack.push(Qt.resolvedUrl("HistoryPage.qml"))
             }
             MenuItem {
-                text: discovery.scanning ? qsTr("Stop scanning") : qsTr("Scan network")
+                text: qsTr("Add by address")
+                onClicked: pageStack.push(Qt.resolvedUrl("AddDevicePage.qml"))
+            }
+            MenuItem {
+                // Named for what separates it from "Look again": that one
+                // re-announces and is instant, this one contacts all 254
+                // addresses of the local subnet and takes about half a minute.
+                text: discovery.scanning ? qsTr("Stop searching")
+                                         : qsTr("Search every address")
                 onClicked: {
                     if (discovery.scanning)
                         discovery.cancelScan()
@@ -289,7 +297,7 @@ Page {
                         font.pixelSize: Theme.fontSizeExtraSmall
                         color: Theme.secondaryColor
                         text: appSettings.receiveEnabled
-                            ? qsTr("Open LocalSend on another device on the same network. It should turn up here within a few seconds.")
+                            ? qsTr("Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.")
                             : qsTr("Receiving is off. Turn it back on in Settings to be found.")
                     }
                 }

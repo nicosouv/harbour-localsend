@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QSettings>
 #include <QString>
+#include <QStringList>
 
 #include "certificate.h"
 #include "deviceinfo.h"
@@ -44,6 +45,8 @@ class AppSettings : public QObject
     Q_PROPERTY(bool historyEnabled READ historyEnabled WRITE setHistoryEnabled NOTIFY historyEnabledChanged)
 
     Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY languageChanged)
+    // Bound directly as a list model on the add-by-address page.
+    Q_PROPERTY(QStringList manualDevices READ manualDevices NOTIFY manualDevicesChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString protocolVersion READ protocolVersion CONSTANT)
 
@@ -100,6 +103,14 @@ public:
     QString language() const;
     void setLanguage(const QString &language);
 
+    // Devices added by address because nothing announces them: a different
+    // subnet, a VPN, a guest network with client isolation on. Stored as
+    // "host:port" and re-registered with on every announcement round, which
+    // is what keeps them from being pruned as stale.
+    QStringList manualDevices() const;
+    Q_INVOKABLE void addManualDevice(const QString &endpoint);
+    Q_INVOKABLE void removeManualDevice(const QString &endpoint);
+
     QString appVersion() const;
     QString protocolVersion() const;
 
@@ -133,6 +144,7 @@ signals:
     void keepAwakeChanged();
     void historyEnabledChanged();
     void languageChanged();
+    void manualDevicesChanged();
 
 private:
     QString detectDeviceModel() const;

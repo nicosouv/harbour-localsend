@@ -45,6 +45,7 @@ const char *KeyNotifications = "ui/notifications";
 const char *KeyKeepAwake = "transfer/keepAwake";
 const char *KeyHistoryEnabled = "ui/history";
 const char *KeyLanguage = "ui/language";
+const char *KeyManualDevices = "network/manualDevices";
 
 } // namespace
 
@@ -413,6 +414,38 @@ void AppSettings::setLanguage(const QString &language)
     m_settings.setValue(QLatin1String(KeyLanguage), language);
     m_settings.sync();
     emit languageChanged();
+}
+
+QStringList AppSettings::manualDevices() const
+{
+    return m_settings.value(QLatin1String(KeyManualDevices)).toStringList();
+}
+
+void AppSettings::addManualDevice(const QString &endpoint)
+{
+    const QString trimmed = endpoint.trimmed();
+    if (trimmed.isEmpty())
+        return;
+
+    QStringList devices = manualDevices();
+    if (devices.contains(trimmed))
+        return;
+
+    devices.append(trimmed);
+    m_settings.setValue(QLatin1String(KeyManualDevices), devices);
+    m_settings.sync();
+    emit manualDevicesChanged();
+}
+
+void AppSettings::removeManualDevice(const QString &endpoint)
+{
+    QStringList devices = manualDevices();
+    if (devices.removeAll(endpoint) == 0)
+        return;
+
+    m_settings.setValue(QLatin1String(KeyManualDevices), devices);
+    m_settings.sync();
+    emit manualDevicesChanged();
 }
 
 QString AppSettings::appVersion() const

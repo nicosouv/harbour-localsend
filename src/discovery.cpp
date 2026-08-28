@@ -47,6 +47,8 @@ Discovery::Discovery(AppSettings *settings, DeviceModel *devices,
     , m_scanDone(0)
     , m_scanInFlight(0)
     , m_scanning(false)
+    , m_manualPending(0)
+    , m_manualFound(false)
 {
     m_announceTimer->setInterval(AnnounceIntervalMs);
     connect(m_announceTimer, &QTimer::timeout, this, &Discovery::announce);
@@ -195,7 +197,182 @@ void Discovery::announce()
 {
     joinGroups();
     sendAnnouncement(true);
+    // Before the prune, or a manual device would be dropped on the very round
+    // that was about to refresh it.
+    refreshManualDevices();
     m_devices->prune(DeviceMaxAgeSeconds);
+}
+
+QNetworkReply *Discovery::probe(const QString &host, int port,
+                                const QString &scheme)
+{
+    QUrl url;
+    url.setScheme(scheme);
+    url.setHost(host);
+    url.setPort(port);
+    url.setPath(QLatin1String(Protocol::ApiPrefix)
+                + QLatin1String(Protocol::PathRegister));
+
+    const bool secure = scheme == QLatin1String("https");
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader,
+                      QStringLiteral("application/json"));
+    if (secure) {
+        TlsClient::configure(request, m_settings->identity().certificate(),
+                             m_settings->identity().privateKey());
+    }
+
+    const QByteArray body = QJsonDocument(
+        m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = m_network->post(request, body);
+    if (secure) {
+        // No fingerprint to pin against: we have not met this device. The
+        // certificate is accepted so the introduction can happen, and
+        // acceptRegisterReply() then refuses to believe the fingerprint it
+        // claims unless it is the hash of that very certificate.
+        TlsClient::acceptUnknown(reply);
+    }
+    return reply;
+}
+
+bool Discovery::acceptRegisterReply(QNetworkReply *reply, QString *alias)
+{
+    if (reply->error() != QNetworkReply::NoError)
+        return false;
+
+    const QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
+    if (!document.isObject())
+        return false;
+
+    DeviceInfo peer = DeviceInfo::fromPayload(document.object());
+    if (!peer.isValid() || peer.fingerprint == m_settings->fingerprint())
+        return false;
+
+    const QString observed = TlsClient::observedFingerprint(reply);
+    if (!observed.isEmpty() && !Crypto::equalsFold(observed, peer.fingerprint)) {
+        qWarning("localsend: %s claims fingerprint %s but presented %s",
+                 qPrintable(reply->url().host()),
+                 qPrintable(peer.fingerprint), qPrintable(observed));
+        return false;
+    }
+
+    // The reply omits the transport details, so they come from the URL we
+    // reached it on rather than from the body.
+    peer.address = reply->url().host();
+    peer.protocol = reply->url().scheme();
+    if (peer.port <= 0)
+        peer.port = reply->url().port(Protocol::DefaultPort);
+
+    m_devices->upsert(peer);
+    if (alias)
+        *alias = peer.alias;
+    return true;
+}
+
+void Discovery::refreshManualDevices()
+{
+    const QStringList endpoints = m_settings->manualDevices();
+
+    for (int i = 0; i < endpoints.count(); ++i) {
+        const QString endpoint = endpoints.at(i);
+        const int colon = endpoint.lastIndexOf(QLatin1Char(':'));
+        if (colon <= 0)
+            continue;
+
+        const QString host = endpoint.left(colon);
+        const int port = endpoint.mid(colon + 1).toInt();
+        if (host.isEmpty() || port <= 0)
+            continue;
+
+        // Both transports, because a device is free to have switched since it
+        // was added and nothing would tell us.
+        const QString schemes[] = { QStringLiteral("https"), QStringLiteral("http") };
+        for (int s = 0; s < 2; ++s) {
+            QNetworkReply *reply = probe(host, port, schemes[s]);
+            connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+                reply->deleteLater();
+                acceptRegisterReply(reply, 0);
+            });
+            QTimer::singleShot(RegisterTimeoutMs, reply, SLOT(abort()));
+        }
+    }
+}
+
+bool Discovery::isManualLookupBusy() const
+{
+    return m_manualPending > 0;
+}
+
+void Discovery::addDeviceAt(const QString &address, int port)
+{
+    if (m_manualPending > 0)
+        return;
+
+    QString host = address.trimmed();
+    int targetPort = port;
+
+    // A pasted address usually carries its own port, and asking somebody to
+    // split it by hand across two fields is a needless step.
+    const int colon = host.lastIndexOf(QLatin1Char(':'));
+    if (colon > 0 && !host.contains(QLatin1Char('['))) {
+        bool ok = false;
+        const int parsed = host.mid(colon + 1).toInt(&ok);
+        if (ok && parsed > 0 && parsed < 65536) {
+            targetPort = parsed;
+            host = host.left(colon);
+        }
+    }
+
+    host = host.trimmed();
+    if (host.isEmpty())
+        return;
+    if (targetPort <= 0 || targetPort > 65535)
+        targetPort = Protocol::DefaultPort;
+
+    m_manualEndpoint = host + QLatin1Char(':') + QString::number(targetPort);
+    m_manualAlias.clear();
+    m_manualFound = false;
+    m_manualPending = 2;
+    emit manualLookupChanged();
+
+    const QString schemes[] = { QStringLiteral("https"), QStringLiteral("http") };
+    for (int s = 0; s < 2; ++s) {
+        QNetworkReply *reply = probe(host, targetPort, schemes[s]);
+        connect(reply, &QNetworkReply::finished,
+                this, &Discovery::onManualReplyFinished);
+        QTimer::singleShot(RegisterTimeoutMs, reply, SLOT(abort()));
+    }
+}
+
+void Discovery::onManualReplyFinished()
+{
+    QNetworkReply *reply = qobject_cast<QNetworkReply *>(sender());
+    if (!reply)
+        return;
+    reply->deleteLater();
+
+    --m_manualPending;
+
+    // First success wins; the other transport's reply is then irrelevant.
+    if (!m_manualFound) {
+        QString alias;
+        if (acceptRegisterReply(reply, &alias)) {
+            m_manualFound = true;
+            m_manualAlias = alias;
+            // Remembered so it survives a restart and gets re-registered with
+            // on every round. A device added by hand is one nothing else can
+            // find, so losing it on exit would mean typing it again.
+            m_settings->addManualDevice(m_manualEndpoint);
+        }
+    }
+
+    if (m_manualPending > 0)
+        return;
+
+    emit manualLookupChanged();
+    emit manualLookupFinished(m_manualFound, m_manualEndpoint, m_manualAlias);
 }
 
 void Discovery::refresh()
@@ -409,34 +586,10 @@ void Discovery::scanSubnet()
 void Discovery::pumpScanQueue()
 {
     while (m_scanning && m_scanInFlight < ScanWindow && !m_scanQueue.isEmpty()) {
-        QUrl url(m_scanQueue.takeFirst());
-        url.setPort(m_settings->port());
-        url.setPath(QLatin1String(Protocol::ApiPrefix)
-                    + QLatin1String(Protocol::PathRegister));
+        const QUrl target(m_scanQueue.takeFirst());
 
-        const bool secure = url.scheme() == QLatin1String("https");
-
-        QNetworkRequest request(url);
-        request.setHeader(QNetworkRequest::ContentTypeHeader,
-                          QStringLiteral("application/json"));
-        if (secure)
-            TlsClient::configure(request, m_settings->identity().certificate(),
-                         m_settings->identity().privateKey());
-
-        const QByteArray body = QJsonDocument(
-            m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
-
-        QNetworkReply *reply = m_network->post(request, body);
-
-        if (secure) {
-            // We have never met whatever is at this address, so there is no
-            // fingerprint to pin against yet. The certificate is accepted to
-            // get the introduction, and onScanReplyFinished then refuses to
-            // believe the device's claimed fingerprint unless it is the hash
-            // of the certificate we were just shown.
-            TlsClient::acceptUnknown(reply);
-        }
-
+        QNetworkReply *reply = probe(target.host(), m_settings->port(),
+                                     target.scheme());
         connect(reply, &QNetworkReply::finished, this, &Discovery::onScanReplyFinished);
         QTimer::singleShot(ScanTimeoutMs, reply, SLOT(abort()));
         ++m_scanInFlight;
@@ -456,30 +609,7 @@ void Discovery::onScanReplyFinished()
     --m_scanInFlight;
     ++m_scanDone;
 
-    if (reply->error() == QNetworkReply::NoError) {
-        const QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
-        if (document.isObject()) {
-            DeviceInfo peer = DeviceInfo::fromPayload(document.object());
-            const QString observed = TlsClient::observedFingerprint(reply);
-
-            // Over TLS the device's claimed fingerprint has to be the hash of
-            // the certificate it just presented. Recording it otherwise would
-            // put an identity in the device list that nothing can ever be
-            // verified against, and every later transfer to it would be
-            // pinned to a fingerprint its certificate does not match.
-            const bool consistent =
-                observed.isEmpty() || Crypto::equalsFold(observed, peer.fingerprint);
-
-            if (peer.isValid() && consistent
-                    && peer.fingerprint != m_settings->fingerprint()) {
-                peer.address = reply->url().host();
-                peer.protocol = reply->url().scheme();
-                if (peer.port <= 0)
-                    peer.port = reply->url().port(Protocol::DefaultPort);
-                m_devices->upsert(peer);
-            }
-        }
-    }
+    acceptRegisterReply(reply, 0);
 
     // The percentage moves a lot; the UI reads it from a property that only
     // changes on this signal, so emitting per reply is exactly right.

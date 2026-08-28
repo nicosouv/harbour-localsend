@@ -32,6 +32,7 @@ class Discovery : public QObject
     Q_PROPERTY(bool running READ isRunning NOTIFY runningChanged)
     Q_PROPERTY(bool multicastReady READ multicastReady NOTIFY runningChanged)
     Q_PROPERTY(bool scanning READ isScanning NOTIFY scanningChanged)
+    Q_PROPERTY(bool manualLookupBusy READ isManualLookupBusy NOTIFY manualLookupChanged)
     Q_PROPERTY(int scanProgress READ scanProgress NOTIFY scanningChanged)
     Q_PROPERTY(QString localAddress READ localAddress NOTIFY runningChanged)
 
@@ -59,6 +60,19 @@ public:
     Q_INVOKABLE void scanSubnet();
     Q_INVOKABLE void cancelScan();
 
+    // Adds a device by address, for the case neither of the above can reach:
+    // a different subnet, a VPN, a guest network with client isolation. The
+    // sweep only covers our own /24, and multicast does not leave the
+    // broadcast domain at all, so without this such a device is simply
+    // unreachable however long you wait.
+    //
+    // `port` may be 0 for the default, and `address` may carry its own
+    // "host:port". Both transports are tried, because there is no way to tell
+    // from outside which one a device is serving.
+    Q_INVOKABLE void addDeviceAt(const QString &address, int port);
+
+    bool isManualLookupBusy() const;
+
     // A peer POSTed /register to us. Records it and hands back our own info
     // for the response body.
     DeviceInfo registerPeer(const QJsonObject &payload, const QString &address);
@@ -66,6 +80,9 @@ public:
 signals:
     void runningChanged();
     void scanningChanged();
+    void manualLookupChanged();
+    void manualLookupFinished(bool found, const QString &endpoint,
+                              const QString &peerAlias);
     void deviceAppeared(const QString &alias);
 
 private slots:
@@ -73,6 +90,7 @@ private slots:
     void announce();
     void onRegisterFinished();
     void onScanReplyFinished();
+    void onManualReplyFinished();
 
 private:
     bool bindSocket();
@@ -88,6 +106,17 @@ private:
     void finishScan();
     QStringList localAddresses() const;
 
+    // Posts /register to one endpoint on one transport. The reply is left
+    // unconnected for the caller to wire to whichever handler it needs.
+    QNetworkReply *probe(const QString &host, int port, const QString &scheme);
+    // Records a peer learned from a /register reply, refusing one whose
+    // announced fingerprint is not the hash of the certificate it presented.
+    bool acceptRegisterReply(QNetworkReply *reply, QString *alias);
+    // Re-registers with every manually added device. Nothing else refreshes
+    // them - that is the whole reason they were added by hand - so without
+    // this they would be pruned as stale a minute after being found.
+    void refreshManualDevices();
+
     AppSettings *m_settings;
     DeviceModel *m_devices;
     QNetworkAccessManager *m_network;
@@ -102,6 +131,13 @@ private:
     int m_scanDone;
     int m_scanInFlight;
     bool m_scanning;
+
+    // One manual lookup at a time, over both transports, so two replies are
+    // outstanding and the first success wins.
+    int m_manualPending;
+    bool m_manualFound;
+    QString m_manualEndpoint;
+    QString m_manualAlias;
 };
 
 #endif // DISCOVERY_H

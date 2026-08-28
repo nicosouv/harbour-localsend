@@ -77,6 +77,53 @@
     </message>
 </context>
 <context>
+    <name>AddDevicePage</name>
+    <message>
+        <source>Add by address</source>
+        <translation>Add by address</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Address</translation>
+    </message>
+    <message>
+        <source>For a device on another network, behind a VPN, or on a Wi-Fi that keeps clients apart. Both plain and encrypted transports are tried.</source>
+        <translation>For a device on another network, behind a VPN, or on a Wi-Fi that keeps clients apart. Both plain and encrypted transports are tried.</translation>
+    </message>
+    <message>
+        <source>Forget</source>
+        <translation>Forget</translation>
+    </message>
+    <message>
+        <source>Forgetting</source>
+        <translation>Forgetting</translation>
+    </message>
+    <message>
+        <source>Found %1</source>
+        <translation>Found %1</translation>
+    </message>
+    <message>
+        <source>Leave this alone unless the other device was moved off the standard port.</source>
+        <translation>Leave this alone unless the other device was moved off the standard port.</translation>
+    </message>
+    <message>
+        <source>Look for it</source>
+        <translation>Look for it</translation>
+    </message>
+    <message>
+        <source>Nothing answered at that address</source>
+        <translation>Nothing answered at that address</translation>
+    </message>
+    <message>
+        <source>Port</source>
+        <translation>Port</translation>
+    </message>
+    <message>
+        <source>Remembered addresses</source>
+        <translation>Remembered addresses</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -193,6 +240,10 @@
         <translation>About</translation>
     </message>
     <message>
+        <source>Add by address</source>
+        <translation>Add by address</translation>
+    </message>
+    <message>
         <source>Add files</source>
         <translation>Add files</translation>
     </message>
@@ -253,8 +304,8 @@
         <translation>Not listening</translation>
     </message>
     <message>
-        <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds.</source>
-        <translation>Open LocalSend on another device on the same network. It should turn up here within a few seconds.</translation>
+        <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
+        <translation>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</translation>
     </message>
     <message>
         <source>Port %1 is unavailable</source>
@@ -277,12 +328,12 @@
         <translation>Receiving is off. Turn it back on in Settings to be found.</translation>
     </message>
     <message>
-        <source>Scan network</source>
-        <translation>Scan network</translation>
-    </message>
-    <message>
         <source>Scanning the network… %1%</source>
         <translation>Scanning the network… %1%</translation>
+    </message>
+    <message>
+        <source>Search every address</source>
+        <translation>Search every address</translation>
     </message>
     <message>
         <source>Select files to send</source>
@@ -301,8 +352,8 @@
         <translation>Shown to other devices</translation>
     </message>
     <message>
-        <source>Stop scanning</source>
-        <translation>Stop scanning</translation>
+        <source>Stop searching</source>
+        <translation>Stop searching</translation>
     </message>
     <message>
         <source>Suggest another</source>

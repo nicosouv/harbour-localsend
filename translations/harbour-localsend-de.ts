@@ -77,6 +77,53 @@
     </message>
 </context>
 <context>
+    <name>AddDevicePage</name>
+    <message>
+        <source>Add by address</source>
+        <translation>Über Adresse hinzufügen</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Adresse</translation>
+    </message>
+    <message>
+        <source>For a device on another network, behind a VPN, or on a Wi-Fi that keeps clients apart. Both plain and encrypted transports are tried.</source>
+        <translation>Für ein Gerät in einem anderen Netz, hinter einem VPN oder in einem WLAN, das Clients voneinander trennt. Beide Transporte werden versucht, verschlüsselt und unverschlüsselt.</translation>
+    </message>
+    <message>
+        <source>Forget</source>
+        <translation>Vergessen</translation>
+    </message>
+    <message>
+        <source>Forgetting</source>
+        <translation>Wird vergessen</translation>
+    </message>
+    <message>
+        <source>Found %1</source>
+        <translation>%1 gefunden</translation>
+    </message>
+    <message>
+        <source>Leave this alone unless the other device was moved off the standard port.</source>
+        <translation>Nur ändern, wenn das andere Gerät den Standardport verlassen hat.</translation>
+    </message>
+    <message>
+        <source>Look for it</source>
+        <translation>Danach suchen</translation>
+    </message>
+    <message>
+        <source>Nothing answered at that address</source>
+        <translation>Unter dieser Adresse hat nichts geantwortet</translation>
+    </message>
+    <message>
+        <source>Port</source>
+        <translation>Port</translation>
+    </message>
+    <message>
+        <source>Remembered addresses</source>
+        <translation>Gemerkte Adressen</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -193,6 +240,10 @@
         <translation>Über</translation>
     </message>
     <message>
+        <source>Add by address</source>
+        <translation>Über Adresse hinzufügen</translation>
+    </message>
+    <message>
         <source>Add files</source>
         <translation>Dateien hinzufügen</translation>
     </message>
@@ -253,8 +304,8 @@
         <translation>Nicht empfangsbereit</translation>
     </message>
     <message>
-        <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds.</source>
-        <translation>Öffnen Sie LocalSend auf einem anderen Gerät im selben Netz. Es sollte hier binnen weniger Sekunden auftauchen.</translation>
+        <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
+        <translation>Öffnen Sie LocalSend auf einem anderen Gerät im selben Netz. Es sollte hier binnen weniger Sekunden auftauchen. Wenn nicht, ziehen Sie herunter: Jede Adresse absuchen geht das ganze Subnetz durch, und Über Adresse hinzufügen erreicht ein Gerät, das ganz woanders steht.</translation>
     </message>
     <message>
         <source>Port %1 is unavailable</source>
@@ -277,12 +328,12 @@
         <translation>Der Empfang ist aus. Schalten Sie ihn in den Einstellungen wieder ein, um gefunden zu werden.</translation>
     </message>
     <message>
-        <source>Scan network</source>
-        <translation>Netz absuchen</translation>
-    </message>
-    <message>
         <source>Scanning the network… %1%</source>
         <translation>Netz wird abgesucht… %1 %</translation>
+    </message>
+    <message>
+        <source>Search every address</source>
+        <translation>Jede Adresse absuchen</translation>
     </message>
     <message>
         <source>Select files to send</source>
@@ -301,7 +352,7 @@
         <translation>Für andere Geräte sichtbar</translation>
     </message>
     <message>
-        <source>Stop scanning</source>
+        <source>Stop searching</source>
         <translation>Suche abbrechen</translation>
     </message>
     <message>

@@ -77,6 +77,53 @@
     </message>
 </context>
 <context>
+    <name>AddDevicePage</name>
+    <message>
+        <source>Add by address</source>
+        <translation>Aggiungi per indirizzo</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Indirizzo</translation>
+    </message>
+    <message>
+        <source>For a device on another network, behind a VPN, or on a Wi-Fi that keeps clients apart. Both plain and encrypted transports are tried.</source>
+        <translation>Per un dispositivo su un'altra rete, dietro una VPN, o su un Wi-Fi che tiene separati i client. Si provano entrambi i trasporti, cifrato e in chiaro.</translation>
+    </message>
+    <message>
+        <source>Forget</source>
+        <translation>Dimentica</translation>
+    </message>
+    <message>
+        <source>Forgetting</source>
+        <translation>Rimozione</translation>
+    </message>
+    <message>
+        <source>Found %1</source>
+        <translation>Trovato %1</translation>
+    </message>
+    <message>
+        <source>Leave this alone unless the other device was moved off the standard port.</source>
+        <translation>Da cambiare solo se l'altro dispositivo ha lasciato la porta standard.</translation>
+    </message>
+    <message>
+        <source>Look for it</source>
+        <translation>Cercalo</translation>
+    </message>
+    <message>
+        <source>Nothing answered at that address</source>
+        <translation>Nessuna risposta a quell'indirizzo</translation>
+    </message>
+    <message>
+        <source>Port</source>
+        <translation>Porta</translation>
+    </message>
+    <message>
+        <source>Remembered addresses</source>
+        <translation>Indirizzi memorizzati</translation>
+    </message>
+</context>
+<context>
     <name>CoverPage</name>
     <message numerus="yes">
         <source>%n file(s)</source>
@@ -193,6 +240,10 @@
         <translation>Informazioni</translation>
     </message>
     <message>
+        <source>Add by address</source>
+        <translation>Aggiungi per indirizzo</translation>
+    </message>
+    <message>
         <source>Add files</source>
         <translation>Aggiungi file</translation>
     </message>
@@ -253,8 +304,8 @@
         <translation>Non in ascolto</translation>
     </message>
     <message>
-        <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds.</source>
-        <translation>Apri LocalSend su un altro dispositivo della stessa rete. Dovrebbe comparire qui in pochi secondi.</translation>
+        <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
+        <translation>Apri LocalSend su un altro dispositivo della stessa rete. Dovrebbe comparire qui in pochi secondi. Altrimenti tira verso il basso: Sonda ogni indirizzo percorre l'intera sottorete, e Aggiungi per indirizzo raggiunge un dispositivo che sta altrove.</translation>
     </message>
     <message>
         <source>Port %1 is unavailable</source>
@@ -277,12 +328,12 @@
         <translation>La ricezione è disattivata. Riattivala nelle impostazioni per essere trovato.</translation>
     </message>
     <message>
-        <source>Scan network</source>
-        <translation>Scansiona la rete</translation>
-    </message>
-    <message>
         <source>Scanning the network… %1%</source>
         <translation>Scansione della rete… %1 %</translation>
+    </message>
+    <message>
+        <source>Search every address</source>
+        <translation>Sonda ogni indirizzo</translation>
     </message>
     <message>
         <source>Select files to send</source>
@@ -301,8 +352,8 @@
         <translation>Visibile agli altri dispositivi</translation>
     </message>
     <message>
-        <source>Stop scanning</source>
-        <translation>Ferma la scansione</translation>
+        <source>Stop searching</source>
+        <translation>Ferma la ricerca</translation>
     </message>
     <message>
         <source>Suggest another</source>
