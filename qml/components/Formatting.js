@@ -70,6 +70,17 @@ function fingerprintGroups(fingerprint) {
     return out
 }
 
+// A local path turned into a URL that opens the file it names.
+//
+// Plain concatenation breaks on names a peer chose: a "#" starts a fragment
+// and a "?" a query, so "holiday#2.jpg" would open "holiday" and silently
+// lose the rest. encodeURI leaves the separators alone and escapes the rest.
+function fileUrl(path) {
+    if (!path)
+        return ""
+    return "file://" + encodeURI(path)
+}
+
 function percent(fraction) {
     if (!fraction || fraction < 0)
         return "0%"

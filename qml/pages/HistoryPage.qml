@@ -47,7 +47,7 @@ Page {
                 MenuItem {
                     text: qsTr("Open folder")
                     visible: record.received && model.destination.length > 0
-                    onClicked: Qt.openUrlExternally("file://" + model.destination)
+                    onClicked: Qt.openUrlExternally(Formatting.fileUrl(model.destination))
                 }
                 MenuItem {
                     text: qsTr("Remove")

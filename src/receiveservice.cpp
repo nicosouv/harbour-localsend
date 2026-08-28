@@ -284,9 +284,17 @@ void ReceiveService::handlePrepareUpload(HttpConnection *connection)
         entry.id = descriptor.value(QStringLiteral("id")).toString(ids.at(i));
         entry.fileName = descriptor.value(QStringLiteral("fileName")).toString();
         entry.size = qint64(descriptor.value(QStringLiteral("size")).toDouble());
-        entry.fileType = descriptor.value(QStringLiteral("fileType")).toString();
-        entry.sha256 = descriptor.value(QStringLiteral("sha256")).toString();
-        entry.preview = descriptor.value(QStringLiteral("preview")).toString();
+        // A MIME type is peer-chosen text like any other, and it reaches the
+        // model that the UI reads.
+        entry.fileType = Protocol::sanitizeText(
+            descriptor.value(QStringLiteral("fileType")).toString(), 128);
+        entry.sha256 = Protocol::sanitizeText(
+            descriptor.value(QStringLiteral("sha256")).toString(), 128);
+
+        // "preview" is deliberately dropped rather than parsed. It carries
+        // base64 thumbnails this app never displays, and keeping them would
+        // mean holding megabytes of a stranger's data in memory for the whole
+        // session to no purpose. What is not stored cannot leak.
 
         if (entry.fileName.isEmpty())
             entry.fileName = QStringLiteral("file");
@@ -441,6 +449,13 @@ void ReceiveService::handleUploadHeaders(HttpConnection *connection)
 
     const QString finalPath = reserveFilePath(m_sessionDirectory,
                                               m_transfer->entry(row).fileName);
+    if (finalPath.isEmpty()) {
+        m_transfer->setFileStatus(row, TransferModel::FileFailed,
+                                  tr("No free name for this file"));
+        connection->respond(500);
+        return;
+    }
+
     Upload upload;
     upload.row = row;
     upload.finalPath = finalPath;
@@ -510,7 +525,12 @@ void ReceiveService::handleUploadFinished(HttpConnection *connection)
                                   tr("Transfer was cut short"));
         connection->respond(500);
     } else {
-        QFile::remove(upload.finalPath);
+        // No remove() of the destination first. reserveFilePath() has already
+        // found a name nothing occupies, so a file there is a surprise, and
+        // deleting a surprise is how somebody else's data goes missing. If
+        // the rename fails the bytes stay under the .part name, which the
+        // branch below records.
+        //
         // Never executable, whatever it is called. Nothing here would set the
         // bit, but a received file is the one thing on this device chosen
         // entirely by somebody else, so it is worth being explicit rather
@@ -811,5 +831,10 @@ QString ReceiveService::reserveFilePath(const QString &directory,
         }
     }
 
-    return candidate;
+    // Nothing free after a thousand tries. Returning the last candidate would
+    // hand back a path that already exists, and the caller would go on to
+    // overwrite whatever is there - a peer allowed to send two thousand files
+    // of the same name could destroy an existing one that way. Empty means
+    // "refuse this file", which is the only safe answer.
+    return QString();
 }

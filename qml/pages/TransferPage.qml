@@ -176,7 +176,7 @@ Page {
                 ContextMenu {
                     MenuItem {
                         text: qsTr("Open")
-                        onClicked: Qt.openUrlExternally("file://" + model.localPath)
+                        onClicked: Qt.openUrlExternally(Formatting.fileUrl(model.localPath))
                     }
                 }
             }

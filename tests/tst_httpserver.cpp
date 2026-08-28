@@ -27,6 +27,9 @@ private slots:
     void rejectsBeforeReadingTheBody();
     void reportsProgressWhileStreaming();
     void deliversAParkedRequestOnlyOnce();
+    void refusesAHeaderThatContradictsItself();
+    void refusesAnEndlessChunkTrailer();
+    void keepsInjectedNewlinesOutOfHeaders();
 
 private:
     // Sends a raw request and returns the whole response.
@@ -357,6 +360,82 @@ void TestHttpServer::deliversAParkedRequestOnlyOnce()
         QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
 
     QCOMPARE(deliveries, 1);
+}
+
+void TestHttpServer::refusesAHeaderThatContradictsItself()
+{
+    // Two Content-Lengths are two answers to where the body ends. Picking one
+    // is the ambiguity request smuggling is built on, so neither is picked.
+    bool reached = false;
+    connect(m_server, &HttpServer::connectionReady, this,
+            [this, &reached](HttpConnection *connection) {
+        connect(connection, &HttpConnection::requestReady, this,
+                [&reached](HttpConnection *ready) {
+            reached = true;
+            ready->respond(200);
+        });
+    });
+
+    const QByteArray response = exchange(
+        "POST /api/localsend/v2/prepare-upload HTTP/1.1\r\n"
+        "Content-Length: 5\r\n"
+        "Content-Length: 500\r\n"
+        "\r\n"
+        "hello");
+
+    QVERIFY(response.startsWith("HTTP/1.1 400"));
+    QVERIFY(!reached);
+}
+
+void TestHttpServer::refusesAnEndlessChunkTrailer()
+{
+    // Trailers never reach deliver(), so nothing else bounds them, and every
+    // line read resets the idle timer. A peer streaming them forever would
+    // hold a connection slot forever without ever completing a request.
+    connect(m_server, &HttpServer::connectionReady, this,
+            [this](HttpConnection *connection) {
+        connect(connection, &HttpConnection::requestReady, this,
+                [](HttpConnection *ready) { ready->respond(200); });
+    });
+
+    QByteArray request =
+        "POST /api/localsend/v2/prepare-upload HTTP/1.1\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "2\r\nhi\r\n"
+        "0\r\n";
+    // Well past the header budget, and never the blank line that ends them.
+    for (int i = 0; i < 2000; ++i)
+        request += "X-Padding: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n";
+
+    const QByteArray response = exchange(request, 8000);
+    QVERIFY(response.startsWith("HTTP/1.1 431"));
+}
+
+void TestHttpServer::keepsInjectedNewlinesOutOfHeaders()
+{
+    // A response is assembled by concatenation, so one embedded newline in a
+    // header value would end the header block early and let the rest of the
+    // value be read as a second, forged response.
+    connect(m_server, &HttpServer::connectionReady, this,
+            [this](HttpConnection *connection) {
+        connect(connection, &HttpConnection::requestReady, this,
+                [](HttpConnection *ready) {
+            ready->addHeader("Retry-After", "5\r\nX-Injected: yes");
+            ready->respond(429);
+        });
+    });
+
+    const QByteArray response = exchange(
+        "GET /api/localsend/v2/info HTTP/1.1\r\n\r\n");
+
+    QVERIFY(response.startsWith("HTTP/1.1 429"));
+
+    // The text survives, flattened onto one line - what must not survive is a
+    // line break in front of it, which is what would have turned the tail
+    // into a header of its own.
+    QVERIFY(!response.contains("\r\nX-Injected"));
+    QVERIFY(response.contains("Retry-After: 5X-Injected: yes"));
 }
 
 QTEST_MAIN(TestHttpServer)

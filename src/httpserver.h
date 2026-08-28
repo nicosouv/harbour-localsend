@@ -64,6 +64,9 @@ public:
     // Adds a header to whatever response comes next. Used for the handful of
     // cases where the status code alone is not enough - Retry-After on a 429
     // being the one that matters, since a client without it can only guess.
+    // Header values are stripped of CR and LF. Nothing peer-controlled goes
+    // through here today, but a response is assembled by concatenation and
+    // one embedded newline turns a header into a forged second response.
     void addHeader(const QByteArray &name, const QByteArray &value);
 
     void respond(int status, const QByteArray &payload = QByteArray(),
@@ -89,6 +92,7 @@ private slots:
     void onReadyRead();
     void onDisconnected();
     void onIdleTimeout();
+    void onHeaderDeadline();
 
 private:
     enum State { ReadingHeaders, ReadingBody, Responded };
@@ -108,6 +112,10 @@ private:
 
     QTcpSocket *m_socket;
     QTimer *m_idleTimer;
+    // An absolute deadline for getting the request line and headers in. The
+    // idle timer restarts on every byte, so on its own a peer sending one
+    // character a minute holds a connection slot for as long as it likes.
+    QTimer *m_headerDeadline;
     State m_state;
 
     QByteArray m_buffer;
@@ -125,6 +133,7 @@ private:
     bool m_chunked;
     ChunkState m_chunkState;
     qint64 m_chunkRemaining;
+    qint64 m_trailerBytes;
     // Set once requestReady() has been emitted, whether or not a handler has
     // answered yet.
     bool m_bodyComplete;

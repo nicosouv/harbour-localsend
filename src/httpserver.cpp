@@ -24,6 +24,11 @@ const int IdleTimeoutMs = 60 * 1000;
 // short enough that being refused is not a way to hold a connection slot.
 const int DrainTimeoutMs = 5 * 1000;
 
+// How long a connection may take to produce a complete set of headers. No
+// legitimate client needs a fraction of this; a slow-request attack needs all
+// of it and more.
+const int HeaderDeadlineMs = 30 * 1000;
+
 // Caps how much the kernel hands us per readyRead. Uploads are written to
 // disk synchronously, so a smaller window here keeps memory flat when the
 // network is faster than the storage.
@@ -67,6 +72,7 @@ HttpConnection::HttpConnection(QTcpSocket *socket, QObject *parent)
     : QObject(parent)
     , m_socket(socket)
     , m_idleTimer(new QTimer(this))
+    , m_headerDeadline(new QTimer(this))
     , m_state(ReadingHeaders)
     , m_sink(0)
     , m_maxBodyBytes(-1)
@@ -75,6 +81,7 @@ HttpConnection::HttpConnection(QTcpSocket *socket, QObject *parent)
     , m_chunked(false)
     , m_chunkState(ChunkSize)
     , m_chunkRemaining(0)
+    , m_trailerBytes(0)
     , m_bodyComplete(false)
     , m_closedEmitted(false)
 {
@@ -98,6 +105,12 @@ HttpConnection::HttpConnection(QTcpSocket *socket, QObject *parent)
     m_idleTimer->setInterval(IdleTimeoutMs);
     connect(m_idleTimer, &QTimer::timeout, this, &HttpConnection::onIdleTimeout);
     m_idleTimer->start();
+
+    m_headerDeadline->setSingleShot(true);
+    m_headerDeadline->setInterval(HeaderDeadlineMs);
+    connect(m_headerDeadline, &QTimer::timeout,
+            this, &HttpConnection::onHeaderDeadline);
+    m_headerDeadline->start();
 
     // Over TLS the request usually arrives inside the same event loop pass as
     // the handshake, so by the time this object exists readyRead has already
@@ -241,9 +254,25 @@ bool HttpConnection::parseHead(const QByteArray &head)
         const int colon = line.indexOf(':');
         if (colon <= 0)
             continue;
-        m_headers.insert(line.left(colon).trimmed().toLower(),
-                         line.mid(colon + 1).trimmed());
+
+        const QByteArray name = line.left(colon).trimmed().toLower();
+        const QByteArray value = line.mid(colon + 1).trimmed();
+
+        // A repeated header that disagrees with itself is refused rather than
+        // resolved. Two Content-Lengths mean two readings of where the body
+        // ends, and quietly picking one is the ambiguity request smuggling is
+        // built on. We sit behind no proxy today, but the cost of being
+        // strict is one comparison.
+        if (m_headers.contains(name) && m_headers.value(name) != value) {
+            fail(400);
+            return false;
+        }
+
+        m_headers.insert(name, value);
     }
+
+    // The head is in; the slow-request deadline has done its job.
+    m_headerDeadline->stop();
 
     m_chunked = m_headers.value("transfer-encoding").toLower().contains("chunked");
     if (m_chunked) {
@@ -368,6 +397,18 @@ void HttpConnection::consumeChunkedBody()
             if (eol < 0)
                 return;
             const bool blank = (eol == 0);
+
+            // Trailers do not go through deliver(), so nothing else bounds
+            // them. A peer that streams trailer lines forever is read forever
+            // - each one resets the idle timer, so the connection never times
+            // out either, and a couple of dozen of those take the listener out
+            // of service without ever completing a request.
+            m_trailerBytes += eol + 2;
+            if (m_trailerBytes > MaxHeadSize) {
+                fail(431);
+                return;
+            }
+
             m_buffer.remove(0, eol + 2);
             if (blank) {
                 m_chunkState = ChunkDone;
@@ -460,7 +501,17 @@ void HttpConnection::respond(int status, const QByteArray &payload,
 
 void HttpConnection::addHeader(const QByteArray &name, const QByteArray &value)
 {
-    m_extraHeaders.append(qMakePair(name, value));
+    QByteArray safeName = name;
+    QByteArray safeValue = value;
+    safeName.replace('\r', "").replace('\n', "");
+    safeValue.replace('\r', "").replace('\n', "");
+    m_extraHeaders.append(qMakePair(safeName, safeValue));
+}
+
+void HttpConnection::onHeaderDeadline()
+{
+    if (m_state == ReadingHeaders)
+        fail(408);
 }
 
 void HttpConnection::respondJson(int status, const QJsonObject &object)

@@ -37,6 +37,9 @@ const int RegisterTimeoutMs = 3000;
 const qint64 ResponseCooldownMs = 10 * 1000;
 const int MaxTrackedResponders = 256;
 
+// Announcements handled in one go before yielding to the event loop.
+const int MaxDatagramsPerPass = 32;
+
 } // namespace
 
 Discovery::Discovery(AppSettings *settings, DeviceModel *devices,
@@ -423,7 +426,13 @@ void Discovery::readDatagrams()
     if (!m_socket)
         return;
 
-    while (m_socket->hasPendingDatagrams()) {
+    // Bounded per pass. A peer can send datagrams faster than this loop
+    // retires them, and an unbounded while() would keep the event loop inside
+    // discovery while the UI and any running transfer starved. Whatever is
+    // left is still queued and picked up on the next readyRead.
+    int budget = MaxDatagramsPerPass;
+
+    while (m_socket->hasPendingDatagrams() && budget-- > 0) {
         QByteArray datagram;
         datagram.resize(int(m_socket->pendingDatagramSize()));
         QHostAddress sender;
