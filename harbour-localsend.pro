@@ -20,10 +20,16 @@ LIBS += -lcrypto
 # copy of the data directory decrypts to nothing. Guarded because every lane
 # that is not the device lacks it: without it SecureStore writes in the clear
 # and says so, rather than the build failing.
+# pkg-config is queried directly rather than through PKGCONFIG, and this is
+# not a style preference. sailfishapp.prf adds itself the PKGCONFIG way, and
+# declaring link_pkgconfig here evaluates the mechanism early enough that
+# -lsailfishapp never reaches the link line - the compile succeeds, the link
+# fails on four SailfishApp symbols, and nothing points at the cause. It has
+# cost two builds; scripts/check_qt56.py now fails on the pattern.
 packagesExist(sailfishsecrets) {
-    CONFIG += link_pkgconfig
-    PKGCONFIG += sailfishsecrets
     DEFINES += HAVE_SAILFISH_SECRETS
+    QMAKE_CXXFLAGS += $$system(pkg-config --cflags sailfishsecrets)
+    LIBS += $$system(pkg-config --libs sailfishsecrets)
     message("Sailfish Secrets found: app data will be encrypted at rest")
 } else {
     warning("Sailfish Secrets not found: app data will be stored in the clear")

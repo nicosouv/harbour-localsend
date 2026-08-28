@@ -116,9 +116,45 @@ def check_imports(path):
     return findings
 
 
+# qmake project files. Not a Qt 5.6 matter, but the same shape of problem:
+# something that builds fine in every other lane and fails only on the device.
+PRO_RULES = [
+    (r"^\s*CONFIG\s*\+=.*\blink_pkgconfig\b",
+     "a link that drops -lsailfishapp",
+     "pkg-config queried directly: "
+     "LIBS += $$system(pkg-config --libs <pkg>)"),
+]
+
+
+def check_project_files():
+    """link_pkgconfig in the .pro silently unlinks sailfishapp.
+
+    sailfishapp.prf pulls itself in through PKGCONFIG. Declaring
+    link_pkgconfig in the project file evaluates that machinery early enough
+    that -lsailfishapp never reaches the link line. Every object compiles,
+    then the link fails on four SailfishApp symbols with nothing to connect it
+    to the line that caused it. Twice.
+    """
+    findings = []
+    for path in sorted(ROOT.glob("*.pro")):
+        for number, raw in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), start=1):
+            line = re.sub(r"#.*$", "", raw)
+            for pattern, since, instead in PRO_RULES:
+                if re.search(pattern, line):
+                    findings.append((path, number, raw.strip(), since, instead))
+    return findings
+
+
 def main():
     problems = 0
     checked = 0
+
+    for path, number, snippet, since, instead in check_project_files():
+        print(f"{path.relative_to(ROOT)}:{number}: {since}")
+        print(f"    {snippet}")
+        print(f"    use {instead}")
+        problems += 1
 
     for path in sorted(SRC_DIR.rglob("*.cpp")) + sorted(SRC_DIR.rglob("*.h")):
         checked += 1
