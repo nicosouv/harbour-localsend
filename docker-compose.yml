@@ -19,6 +19,23 @@ services:
       && cmake --build /build
       && QT_QPA_PLATFORM=offscreen ctest --test-dir /build --output-on-failure"
 
+  # The same tests, compiled with AddressSanitizer and UBSan. Slower, and the
+  # only lane that would notice a buffer overrun or a use-after-free in the
+  # HTTP parser before a stranger on the network did.
+  sanitize:
+    build: ./tests
+    volumes:
+      - .:/src
+    working_dir: /src
+    command: >
+      bash -c "cmake -S tests -B /build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      -DSANITIZE=ON
+      && cmake --build /build-asan
+      && QT_QPA_PLATFORM=offscreen
+      ASAN_OPTIONS=detect_leaks=0:abort_on_error=1
+      UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+      ctest --test-dir /build-asan --output-on-failure"
+
   syntax:
     build: ./tests
     volumes:

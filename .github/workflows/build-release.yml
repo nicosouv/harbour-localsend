@@ -57,6 +57,35 @@ jobs:
       - name: Run tests
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 
+  sanitizers:
+    name: Sanitizers
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev qtbase5-dev-tools qt5-qmake cmake ninja-build g++ libssl-dev
+
+      # The request path is hand-written C++ parsing whatever a stranger sends.
+      # The unit tests cover what somebody thought of; this covers what nobody
+      # did, which on a parser is the half that matters.
+      - name: Build with AddressSanitizer and UBSan
+        run: |
+          cmake -S tests -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DSANITIZE=ON
+          cmake --build build-asan
+
+      - name: Run
+        run: |
+          QT_QPA_PLATFORM=offscreen \
+          ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 \
+          UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+          ctest --test-dir build-asan --output-on-failure
+
   build:
     name: "Build RPM for ${{ matrix.arch }}"
     runs-on: ubuntu-latest
@@ -105,7 +134,7 @@ jobs:
           path: RPMS/*.rpm
 
   create-release:
-    needs: [build, unit-tests]
+    needs: [build, unit-tests, sanitizers]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -174,7 +203,8 @@ jobs:
           3. Tap a device to send it files, or just wait to be sent some
 
           If nothing shows up, the network is probably blocking multicast: pull
-          down and choose **Scan network**.
+          down and choose **Search every address**. For a device on another
+          network entirely, **Add by address**.
 
           ## Notes
 

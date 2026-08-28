@@ -12,6 +12,16 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(Qt5 REQUIRED COMPONENTS Core Network Test)
 find_package(OpenSSL REQUIRED)
 
+# The request path is hand-written C++ reading whatever a stranger on the
+# network sends. The unit tests cover the cases somebody thought of; the
+# sanitizers cover the ones nobody did, which on a parser is the interesting
+# half. Off by default because they slow the suite down several times over.
+option(SANITIZE "Build the tests with AddressSanitizer and UBSan" OFF)
+if(SANITIZE)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
 add_library(localsend STATIC
