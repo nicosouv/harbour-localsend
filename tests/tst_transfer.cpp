@@ -1,3 +1,6 @@
+#include <functional>
+
+#include <QCryptographicHash>
 #include <QEventLoop>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -48,8 +51,11 @@ private slots:
     void rejectsASecondSessionWhileBusy();
     void fileNamesCannotEscapeTheDestination();
     void anUploadCannotExceedTheSizeItDeclared();
+    void refusesAFileThatDoesNotMatchItsDigest();
+    void keepsAFileWhoseDigestMatches();
 
-private:
+public:
+    // Public so the digest helper below can hand one back.
     struct Reply
     {
         int status;
@@ -57,9 +63,11 @@ private:
         Reply() : status(0) {}
     };
 
+    Reply post(const QString &path, const QByteArray &body);
+
+private:
     QVariantMap loopbackDevice() const;
     QString writeFile(const QString &name, const QByteArray &content);
-    Reply post(const QString &path, const QByteArray &body);
     void restartReceiver();
     static quint16 freePort();
 
@@ -633,6 +641,83 @@ void TestTransfer::anUploadCannotExceedTheSizeItDeclared()
     // And nothing oversized was left behind under either name.
     QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/small.bin")));
     QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/small.bin.part")));
+}
+
+// Drives one file through prepare-upload and upload with a stated digest,
+// and returns the upload's status code.
+static int uploadWithDigest(TestTransfer *test, const QString &name,
+                            const QByteArray &content, const QString &digest,
+                            std::function<TestTransfer::Reply(const QString &,
+                                                              const QByteArray &)> post)
+{
+    Q_UNUSED(test)
+
+    QJsonObject descriptor;
+    descriptor.insert(QStringLiteral("id"), QStringLiteral("d"));
+    descriptor.insert(QStringLiteral("fileName"), name);
+    descriptor.insert(QStringLiteral("size"), content.size());
+    descriptor.insert(QStringLiteral("sha256"), digest);
+
+    QJsonObject files;
+    files.insert(QStringLiteral("d"), descriptor);
+
+    QJsonObject info;
+    info.insert(QStringLiteral("alias"), QStringLiteral("Hasher"));
+    info.insert(QStringLiteral("fingerprint"), QStringLiteral("hasher"));
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("info"), info);
+    payload.insert(QStringLiteral("files"), files);
+
+    const TestTransfer::Reply prepared = post(
+        QStringLiteral("/prepare-upload"),
+        QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    if (prepared.status != 200)
+        return prepared.status;
+
+    const QJsonObject response = QJsonDocument::fromJson(prepared.body).object();
+    const QString sessionId = response.value(QStringLiteral("sessionId")).toString();
+    const QString token = response.value(QStringLiteral("files")).toObject()
+                          .value(QStringLiteral("d")).toString();
+
+    return post(QStringLiteral("/upload?sessionId=%1&fileId=d&token=%2")
+                    .arg(sessionId).arg(token),
+                content).status;
+}
+
+void TestTransfer::refusesAFileThatDoesNotMatchItsDigest()
+{
+    // A digest that does not describe the bytes means the file is not what
+    // was agreed to. Keeping it under the agreed name would be worse than
+    // dropping it: nothing downstream would ever question it again.
+    const QByteArray content = "the bytes that actually arrived";
+    const QString wrong = QString(64, QLatin1Char('a'));
+
+    const int status = uploadWithDigest(
+        this, QStringLiteral("damaged.txt"), content, wrong,
+        [this](const QString &p, const QByteArray &b) { return post(p, b); });
+
+    // 422 is what the protocol reserves for exactly this.
+    QCOMPARE(status, 422);
+    QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/damaged.txt")));
+    QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/damaged.txt.part")));
+}
+
+void TestTransfer::keepsAFileWhoseDigestMatches()
+{
+    const QByteArray content = "the bytes that actually arrived";
+    const QString correct = QString::fromLatin1(
+        QCryptographicHash::hash(content, QCryptographicHash::Sha256).toHex());
+
+    const int status = uploadWithDigest(
+        this, QStringLiteral("sound.txt"), content, correct,
+        [this](const QString &p, const QByteArray &b) { return post(p, b); });
+
+    QCOMPARE(status, 200);
+
+    QFile landed(m_home->path() + QStringLiteral("/sound.txt"));
+    QVERIFY(landed.open(QIODevice::ReadOnly));
+    QCOMPARE(landed.readAll(), content);
 }
 
 QTEST_MAIN(TestTransfer)

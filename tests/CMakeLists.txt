@@ -21,6 +21,7 @@ add_library(localsend STATIC
     ${SRC_DIR}/deviceinfo.cpp
     ${SRC_DIR}/devicemodel.cpp
     ${SRC_DIR}/discovery.cpp
+    ${SRC_DIR}/hashingfile.cpp
     ${SRC_DIR}/historymodel.cpp
     ${SRC_DIR}/httpserver.cpp
     ${SRC_DIR}/knowndevices.cpp

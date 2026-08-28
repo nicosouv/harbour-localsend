@@ -20,6 +20,7 @@
 #include "discovery.h"
 #include "knowndevices.h"
 #include "historymodel.h"
+#include "hashingfile.h"
 #include "httpserver.h"
 #include "protocol.h"
 #include "transfermodel.h"
@@ -37,6 +38,17 @@ const int SessionIdleMs = 60 * 1000;
 // Generous next to any real transfer, and far below what it would take to
 // exhaust memory through the token table.
 const int MaxFilesPerSession = 2000;
+
+bool looksLikeSha256(const QString &digest)
+{
+    if (digest.length() != 64)
+        return false;
+    for (int i = 0; i < 64; ++i) {
+        if (!isxdigit(digest.at(i).toLatin1()))
+            return false;
+    }
+    return true;
+}
 
 } // namespace
 
@@ -460,7 +472,7 @@ void ReceiveService::handleUploadHeaders(HttpConnection *connection)
     upload.row = row;
     upload.finalPath = finalPath;
     upload.partPath = finalPath + QLatin1String(PartSuffix);
-    upload.file = new QFile(upload.partPath, this);
+    upload.file = new HashingFile(upload.partPath, this);
 
     if (!upload.file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         delete upload.file;
@@ -516,7 +528,19 @@ void ReceiveService::handleUploadFinished(HttpConnection *connection)
 
     upload.file->flush();
     upload.file->close();
+
     const bool complete = upload.file->size() >= m_transfer->entry(upload.row).size;
+
+    // The sender states a digest when it asks permission. It is a checksum
+    // rather than a MAC - it travels the same channel the file does, so it
+    // proves nothing against somebody able to alter both - but it catches the
+    // corruption TCP's sixteen-bit checksum lets through, and the protocol
+    // reserves 422 for saying so.
+    const QString declared = m_transfer->entry(upload.row).sha256;
+    bool digestMatches = true;
+    if (complete && looksLikeSha256(declared))
+        digestMatches = Crypto::equalsFold(upload.file->digest(), declared);
+
     delete upload.file;
 
     if (!complete) {
@@ -524,6 +548,13 @@ void ReceiveService::handleUploadFinished(HttpConnection *connection)
         m_transfer->setFileStatus(upload.row, TransferModel::FileFailed,
                                   tr("Transfer was cut short"));
         connection->respond(500);
+    } else if (!digestMatches) {
+        // Not what was described, so it is not kept. Half a file with the
+        // right name is worse than no file: nothing later would question it.
+        QFile::remove(upload.partPath);
+        m_transfer->setFileStatus(upload.row, TransferModel::FileFailed,
+                                  tr("The file arrived damaged"));
+        connection->respond(422);
     } else {
         // No remove() of the destination first. reserveFilePath() has already
         // found a name nothing occupies, so a file there is a surprise, and

@@ -13,9 +13,9 @@ class AppSettings;
 class Discovery;
 class HistoryModel;
 class HttpConnection;
+class HashingFile;
 class HttpServer;
 class KnownDevices;
-class QFile;
 class QNetworkAccessManager;
 class QTimer;
 class TransferModel;
@@ -85,7 +85,9 @@ private:
     struct Upload
     {
         int row;
-        QFile *file;
+        // Hashes as it writes, so the digest the sender declared can be
+        // checked without reading the file back.
+        HashingFile *file;
         QString partPath;
         QString finalPath;
 

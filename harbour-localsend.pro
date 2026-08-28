@@ -48,6 +48,7 @@ SOURCES += src/harbour-localsend.cpp \
     src/deviceinfo.cpp \
     src/devicemodel.cpp \
     src/discovery.cpp \
+    src/hashingfile.cpp \
     src/historymodel.cpp \
     src/httpserver.cpp \
     src/knowndevices.cpp \
@@ -66,6 +67,7 @@ HEADERS += src/appsettings.h \
     src/deviceinfo.h \
     src/devicemodel.h \
     src/discovery.h \
+    src/hashingfile.h \
     src/historymodel.h \
     src/httpserver.h \
     src/knowndevices.h \

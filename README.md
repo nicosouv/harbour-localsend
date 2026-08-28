@@ -135,6 +135,14 @@ Other hardening, all of it covered by tests:
   against the number shown on the accept page; the bytes arrive in a separate
   request, and nothing else made the two agree.
 - **Received files are never executable**, whatever they are called.
+- **A file that does not match its stated digest is dropped**, answered with
+  the `422` the protocol reserves for it. Worth being clear about what this is
+  and is not: the `sha256` travels the same channel the file does, so anyone
+  able to alter one can alter the other — it is a checksum, not a MAC, and
+  under TLS the integrity guarantee already comes from the transport. What it
+  catches is corruption, which TCP's 16-bit checksum lets through more often
+  than people expect. The hash is computed as the bytes are written, so it
+  costs no extra read.
 - **Discovery cannot be used as a reflector.** Announcements are
   unauthenticated UDP with a forgeable source, so answering every one would
   let an attacker aim this device's replies at a third party. Responses are
