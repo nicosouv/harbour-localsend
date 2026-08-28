@@ -23,6 +23,7 @@ add_library(localsend STATIC
     ${SRC_DIR}/discovery.cpp
     ${SRC_DIR}/historymodel.cpp
     ${SRC_DIR}/httpserver.cpp
+    ${SRC_DIR}/knowndevices.cpp
     ${SRC_DIR}/protocol.cpp
     ${SRC_DIR}/ratelimiter.cpp
     ${SRC_DIR}/receiveservice.cpp

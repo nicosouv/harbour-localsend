@@ -15,8 +15,10 @@
 #include <QUrlQuery>
 
 #include "appsettings.h"
+#include "certificate.h"
 #include "crypto.h"
 #include "discovery.h"
+#include "knowndevices.h"
 #include "historymodel.h"
 #include "httpserver.h"
 #include "protocol.h"
@@ -54,6 +56,7 @@ ReceiveService::ReceiveService(AppSettings *settings, Discovery *discovery,
     , m_history(history)
     , m_network(network)
     , m_server(new HttpServer(this))
+    , m_known(0)
     , m_acceptTimer(new QTimer(this))
     , m_idleTimer(new QTimer(this))
 {
@@ -70,6 +73,11 @@ ReceiveService::ReceiveService(AppSettings *settings, Discovery *discovery,
 
     connect(m_settings, &AppSettings::portChanged,
             this, &ReceiveService::onSettingsChanged);
+}
+
+void ReceiveService::setKnownDevices(KnownDevices *known)
+{
+    m_known = known;
 }
 
 bool ReceiveService::isListening() const { return m_server->isListening(); }
@@ -104,13 +112,14 @@ bool ReceiveService::startListening()
     }
 
     m_listenError.clear();
-    // One line at startup that says what a peer will actually meet, because
-    // an announcement and a socket that disagree about the transport is a
-    // failure with no symptom on either side.
-    qWarning("localsend: listening on port %d over %s, fingerprint %s",
+    // One line at startup saying what a peer will actually meet: an
+    // announcement and a socket that disagree about the transport fail with
+    // no symptom on either side. Without the fingerprint, which belongs on
+    // the About page where it can be compared, not in the system journal on
+    // every launch.
+    qWarning("localsend: listening on port %d over %s",
              m_server->boundPort(),
-             m_server->isSecure() ? "https" : "http",
-             qPrintable(m_settings->fingerprint()));
+             m_server->isSecure() ? "https" : "http");
     emit listeningChanged();
     return true;
 }
@@ -241,6 +250,27 @@ void ReceiveService::handlePrepareUpload(HttpConnection *connection)
 
     DeviceInfo peer = DeviceInfo::fromPayload(info);
     peer.address = connection->peerAddress();
+
+    // A sender's claimed identity is worth something only if the key it
+    // handshook with is the one it claims. Without this the fingerprint in
+    // the body is a string anybody can put anything in, and the accept prompt
+    // would name whoever the sender felt like being.
+    //
+    // Only checked when a certificate was actually presented: a plain-HTTP
+    // peer has none, and there is nothing to verify rather than something to
+    // reject.
+    const QSslCertificate presented = connection->peerCertificate();
+    if (!presented.isNull()) {
+        const QString observed = Certificate::fingerprintOf(presented);
+        if (!Crypto::equalsFold(observed, peer.fingerprint)) {
+            qWarning("localsend: refusing %s, it claims fingerprint %s but "
+                     "handshook with %s",
+                     qPrintable(peer.address), qPrintable(peer.fingerprint),
+                     qPrintable(observed));
+            connection->respond(403);
+            return;
+        }
+    }
     // A sender we have never seen still belongs in the device list, and this
     // is often how a device on a multicast-hostile network first appears.
     m_discovery->registerPeer(info, connection->peerAddress());
@@ -634,6 +664,12 @@ void ReceiveService::finishSession(const QString &status)
                              tr("%1 of %2 files were received").arg(done).arg(total));
     else
         m_transfer->setState(TransferModel::Failed, tr("Nothing was received"));
+
+    // Recorded only once something actually arrived from this key, not on
+    // discovery: remembering everything that announces itself would let an
+    // impostor claim a name simply by getting there first.
+    if (m_known && done > 0)
+        m_known->remember(m_peer.fingerprint, m_peer.alias);
 
     if (m_settings->historyEnabled() && done > 0) {
         HistoryModel::Record record;

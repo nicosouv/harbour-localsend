@@ -75,6 +75,10 @@
         <source>Version</source>
         <translation>Versio</translation>
     </message>
+    <message>
+        <source>What other devices know this one by. Read it out to somebody to let them confirm it really is you they are sending to.</source>
+        <translation>Tästä muut laitteet tunnistavat tämän. Lue se jollekulle, jotta hän voi varmistaa lähettävänsä juuri sinulle.</translation>
+    </message>
 </context>
 <context>
     <name>AddDevicePage</name>
@@ -174,6 +178,10 @@
         <source>Send staged files</source>
         <translation>Lähetä valitut tiedostot</translation>
     </message>
+    <message>
+        <source>This name has used a different key before</source>
+        <translation>Tämä nimi on käyttänyt aiemmin toista avainta</translation>
+    </message>
 </context>
 <context>
     <name>HistoryPage</name>
@@ -236,6 +244,10 @@
 <context>
     <name>MainPage</name>
     <message>
+        <source>A device with this name used a different key before. Nothing stops one device on a network from announcing another one's name.</source>
+        <translation>Tämän niminen laite käytti aiemmin toista avainta. Mikään ei estä verkossa olevaa laitetta ilmoittamasta toisen nimeä.</translation>
+    </message>
+    <message>
         <source>About</source>
         <translation>Tietoja</translation>
     </message>
@@ -252,8 +264,16 @@
         <translation>Osoite</translation>
     </message>
     <message>
+        <source>Before</source>
+        <translation>Aiemmin</translation>
+    </message>
+    <message>
         <source>Clear selection</source>
         <translation>Tyhjennä valinta</translation>
+    </message>
+    <message>
+        <source>Compare the fingerprint against the other device before continuing. Sending confirms the new key and it will not ask again.</source>
+        <translation>Vertaa sormenjälkeä toisen laitteen näyttämään ennen jatkamista. Lähettäminen vahvistaa uuden avaimen eikä asiaa kysytä uudelleen.</translation>
     </message>
     <message>
         <source>Device</source>
@@ -270,6 +290,10 @@
     <message>
         <source>Fingerprint</source>
         <translation>Sormenjälki</translation>
+    </message>
+    <message>
+        <source>First time</source>
+        <translation>Ensimmäinen kerta</translation>
     </message>
     <message>
         <source>History</source>
@@ -304,6 +328,10 @@
         <translation>Ei kuuntele</translation>
     </message>
     <message>
+        <source>Now</source>
+        <translation>Nyt</translation>
+    </message>
+    <message>
         <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
         <translation>Avaa LocalSend toisella samassa verkossa olevalla laitteella. Sen pitäisi ilmestyä tähän muutamassa sekunnissa. Jos ei, vedä alas: Kokeile kaikkia osoitteita käy läpi koko aliverkon, ja Lisää osoitteella tavoittaa laitteen joka on aivan muualla.</translation>
     </message>
@@ -336,8 +364,20 @@
         <translation>Kokeile kaikkia osoitteita</translation>
     </message>
     <message>
+        <source>Seen before</source>
+        <translation>Tavattu aiemmin</translation>
+    </message>
+    <message>
         <source>Select files to send</source>
         <translation>Valitse lähetettävät tiedostot</translation>
+    </message>
+    <message>
+        <source>Send anyway</source>
+        <translation>Lähetä silti</translation>
+    </message>
+    <message>
+        <source>Send anyway?</source>
+        <translation>Lähetetäänkö silti?</translation>
     </message>
     <message>
         <source>Send files</source>
@@ -360,6 +400,10 @@
         <translation>Ehdota toista</translation>
     </message>
     <message>
+        <source>The only thing that identifies a device. Compare it against what the other device shows to be certain who you are talking to.</source>
+        <translation>Ainoa asia joka tunnistaa laitteen. Vertaa sitä toisen laitteen näyttämään ollaksesi varma kenen kanssa puhut.</translation>
+    </message>
+    <message>
         <source>This network is blocking discovery. Pull down and choose Scan network.</source>
         <translation>Tämä verkko estää laitteiden löytämisen. Vedä alas ja valitse Etsi verkosta.</translation>
     </message>
@@ -374,6 +418,14 @@
     <message>
         <source>Unknown</source>
         <translation>Tuntematon</translation>
+    </message>
+    <message>
+        <source>Yes, key matches</source>
+        <translation>Kyllä, avain täsmää</translation>
+    </message>
+    <message>
+        <source>You have sent to a device called %1 before, but it used a different key. Either it was reinstalled, or something else on this network is using its name.</source>
+        <translation>Olet lähettänyt aiemmin laitteelle nimeltä %1, mutta se käytti toista avainta. Joko se on asennettu uudelleen tai jokin muu tässä verkossa käyttää sen nimeä.</translation>
     </message>
     <message>
         <source>Your device name</source>

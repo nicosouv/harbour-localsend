@@ -16,6 +16,7 @@
 #include "devicemodel.h"
 #include "discovery.h"
 #include "historymodel.h"
+#include "knowndevices.h"
 #include "receiveservice.h"
 #include "selectionmodel.h"
 #include "sendservice.h"
@@ -41,9 +42,18 @@ int main(int argc, char *argv[])
     HistoryModel history;
     SelectionModel selection;
 
+    // Which key belongs to which name, learned from completed transfers. The
+    // device list reads it to mark a device as known, and to flag a name that
+    // has turned up under a key it has never used before.
+    KnownDevices knownDevices;
+    devices.setKnownDevices(&knownDevices);
+
     Discovery discovery(&settings, &devices, &network);
     ReceiveService receiver(&settings, &discovery, &transfer, &history, &network);
     SendService sender(&settings, &transfer, &history, &network);
+
+    receiver.setKnownDevices(&knownDevices);
+    sender.setKnownDevices(&knownDevices);
 
     QTranslator *translator = new QTranslator(app);
     const QString translationsPath = SailfishApp::pathTo(
@@ -79,6 +89,7 @@ int main(int argc, char *argv[])
     context->setContextProperty(QStringLiteral("discovery"), &discovery);
     context->setContextProperty(QStringLiteral("receiver"), &receiver);
     context->setContextProperty(QStringLiteral("sender"), &sender);
+    context->setContextProperty(QStringLiteral("knownDevices"), &knownDevices);
 
     // Being discoverable is the whole point of the app, so it starts listening
     // before the first frame rather than when some page happens to load.

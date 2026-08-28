@@ -31,6 +31,7 @@ SOURCES += src/harbour-localsend.cpp \
     src/discovery.cpp \
     src/historymodel.cpp \
     src/httpserver.cpp \
+    src/knowndevices.cpp \
     src/protocol.cpp \
     src/ratelimiter.cpp \
     src/receiveservice.cpp \
@@ -47,6 +48,7 @@ HEADERS += src/appsettings.h \
     src/discovery.h \
     src/historymodel.h \
     src/httpserver.h \
+    src/knowndevices.h \
     src/protocol.h \
     src/ratelimiter.h \
     src/receiveservice.h \

@@ -43,6 +43,9 @@ public:
     QJsonObject jsonBody() const;
 
     QString peerAddress() const;
+    // The certificate the client presented, null over plain HTTP or when it
+    // offered none. Captured at construction, which is after the handshake.
+    QSslCertificate peerCertificate() const;
     qint64 contentLength() const;
     qint64 bodyReceived() const;
 
@@ -119,6 +122,7 @@ private:
     bool m_bodyComplete;
 
     QString m_peerAddress;
+    QSslCertificate m_peerCertificate;
     bool m_closedEmitted;
 };
 

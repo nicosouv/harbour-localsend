@@ -75,6 +75,10 @@
         <source>Version</source>
         <translation>Version</translation>
     </message>
+    <message>
+        <source>What other devices know this one by. Read it out to somebody to let them confirm it really is you they are sending to.</source>
+        <translation>What other devices know this one by. Read it out to somebody to let them confirm it really is you they are sending to.</translation>
+    </message>
 </context>
 <context>
     <name>AddDevicePage</name>
@@ -174,6 +178,10 @@
         <source>Send staged files</source>
         <translation>Send staged files</translation>
     </message>
+    <message>
+        <source>This name has used a different key before</source>
+        <translation>This name has used a different key before</translation>
+    </message>
 </context>
 <context>
     <name>HistoryPage</name>
@@ -236,6 +244,10 @@
 <context>
     <name>MainPage</name>
     <message>
+        <source>A device with this name used a different key before. Nothing stops one device on a network from announcing another one's name.</source>
+        <translation>A device with this name used a different key before. Nothing stops one device on a network from announcing another one's name.</translation>
+    </message>
+    <message>
         <source>About</source>
         <translation>About</translation>
     </message>
@@ -252,8 +264,16 @@
         <translation>Address</translation>
     </message>
     <message>
+        <source>Before</source>
+        <translation>Before</translation>
+    </message>
+    <message>
         <source>Clear selection</source>
         <translation>Clear selection</translation>
+    </message>
+    <message>
+        <source>Compare the fingerprint against the other device before continuing. Sending confirms the new key and it will not ask again.</source>
+        <translation>Compare the fingerprint against the other device before continuing. Sending confirms the new key and it will not ask again.</translation>
     </message>
     <message>
         <source>Device</source>
@@ -270,6 +290,10 @@
     <message>
         <source>Fingerprint</source>
         <translation>Fingerprint</translation>
+    </message>
+    <message>
+        <source>First time</source>
+        <translation>First time</translation>
     </message>
     <message>
         <source>History</source>
@@ -304,6 +328,10 @@
         <translation>Not listening</translation>
     </message>
     <message>
+        <source>Now</source>
+        <translation>Now</translation>
+    </message>
+    <message>
         <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
         <translation>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</translation>
     </message>
@@ -336,8 +364,20 @@
         <translation>Search every address</translation>
     </message>
     <message>
+        <source>Seen before</source>
+        <translation>Seen before</translation>
+    </message>
+    <message>
         <source>Select files to send</source>
         <translation>Select files to send</translation>
+    </message>
+    <message>
+        <source>Send anyway</source>
+        <translation>Send anyway</translation>
+    </message>
+    <message>
+        <source>Send anyway?</source>
+        <translation>Send anyway?</translation>
     </message>
     <message>
         <source>Send files</source>
@@ -360,6 +400,10 @@
         <translation>Suggest another</translation>
     </message>
     <message>
+        <source>The only thing that identifies a device. Compare it against what the other device shows to be certain who you are talking to.</source>
+        <translation>The only thing that identifies a device. Compare it against what the other device shows to be certain who you are talking to.</translation>
+    </message>
+    <message>
         <source>This network is blocking discovery. Pull down and choose Scan network.</source>
         <translation>This network is blocking discovery. Pull down and choose Scan network.</translation>
     </message>
@@ -374,6 +418,14 @@
     <message>
         <source>Unknown</source>
         <translation>Unknown</translation>
+    </message>
+    <message>
+        <source>Yes, key matches</source>
+        <translation>Yes, key matches</translation>
+    </message>
+    <message>
+        <source>You have sent to a device called %1 before, but it used a different key. Either it was reinstalled, or something else on this network is using its name.</source>
+        <translation>You have sent to a device called %1 before, but it used a different key. Either it was reinstalled, or something else on this network is using its name.</translation>
     </message>
     <message>
         <source>Your device name</source>

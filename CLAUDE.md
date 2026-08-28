@@ -112,9 +112,21 @@ nothing to say. What replaces it:
   that an unignored error actually aborts. `QueryPeer` reports errors and
   connects anyway, which silently turns the check into a suggestion — there is
   a test for exactly this.
-- `TlsClient::acceptUnknown()` exists only for the subnet sweep, where no
-  fingerprint is known yet. Its callers must then verify the claimed
-  fingerprint against `observedFingerprint()`. Never use it for a transfer.
+- `TlsClient::acceptUnknown()` exists only for discovery, where no fingerprint
+  is known yet. Its callers must then verify the claimed fingerprint against
+  `observedFingerprint()`. Never use it for a transfer.
+- **Fingerprints are uppercase hex** on the wire, matching the reference
+  implementation's `{byte:02X}`. Compare with `Crypto::equalsFold()`, never
+  `equals()`: a peer using the other convention is not wrong, and refusing it
+  produces a dead handshake with nothing to read.
+- **Mutual TLS.** Peers request a client certificate; a client with none is
+  cut off with "tlsv13 alert certificate required" before sending a byte. So
+  `TlsClient::configure()` always presents our identity, and the server uses
+  `QueryPeer` to collect the sender's.
+- `KnownDevices` records a key against a name **only after a completed
+  transfer**, never on discovery — otherwise an impostor claims a name by
+  announcing first. A known name under a new key is a conflict; a known key
+  under a new name is just a rename, because the key is the identity.
 
 ## Invariants worth keeping
 

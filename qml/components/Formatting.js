@@ -54,6 +54,22 @@ function pad(value) {
     return value < 10 ? "0" + value : "" + value
 }
 
+// A 64-character hash is unreadable as one run of characters, and comparing
+// one against another device's screen is exactly what it is there for. Groups
+// of eight make that possible.
+function fingerprintGroups(fingerprint) {
+    if (!fingerprint)
+        return ""
+
+    var out = ""
+    for (var i = 0; i < fingerprint.length; i += 8) {
+        if (i > 0)
+            out += (i % 32 === 0) ? "\n" : "  "
+        out += fingerprint.substring(i, i + 8)
+    }
+    return out
+}
+
 function percent(fraction) {
     if (!fraction || fraction < 0)
         return "0%"

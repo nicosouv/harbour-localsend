@@ -4,6 +4,7 @@
 
 #include "certificate.h"
 #include "crypto.h"
+#include "knowndevices.h"
 #include "ratelimiter.h"
 
 // The security primitives, tested for the properties they are relied on for
@@ -22,6 +23,11 @@ private slots:
     void storesThePrivateKeyOwnerOnly();
     void fingerprintIsTheHashOfTheDerCertificate();
     void replacesAnIdentityItCannotRead();
+
+    void remembersAKeyOnlyOnceToldTo();
+    void flagsAKnownNameArrivingWithANewKey();
+    void treatsARenameAsTheOwnersBusiness();
+    void survivesARestart();
 
     void rateLimiterLetsHonestMistakesThrough();
     void rateLimiterBacksOffAndRecovers();
@@ -186,6 +192,96 @@ void TestSecurity::replacesAnIdentityItCannotRead()
     QVERIFY(second.isValid());
     QVERIFY(second.fingerprint() != first.fingerprint());
     QVERIFY(QFile::exists(certPath));
+}
+
+void TestSecurity::remembersAKeyOnlyOnceToldTo()
+{
+    KnownDevices known;
+    known.forgetAll();
+
+    const QString key = QString(64, QLatin1Char('A'));
+
+    // Nothing is recorded by merely being seen. If discovery wrote to this
+    // store, an impostor could claim a name simply by announcing before the
+    // device it is imitating.
+    QVERIFY(!known.isKnown(key));
+    QVERIFY(!known.conflicts(key, QStringLiteral("Nice Orange")));
+
+    known.remember(key, QStringLiteral("Nice Orange"));
+    QVERIFY(known.isKnown(key));
+    QCOMPARE(known.aliasFor(key), QStringLiteral("Nice Orange"));
+    QVERIFY(known.firstSeen(key).isValid());
+
+    known.forgetAll();
+}
+
+void TestSecurity::flagsAKnownNameArrivingWithANewKey()
+{
+    KnownDevices known;
+    known.forgetAll();
+
+    const QString real = QString(64, QLatin1Char('A'));
+    const QString impostor = QString(64, QLatin1Char('B'));
+
+    known.remember(real, QStringLiteral("MacBook"));
+
+    // The same name under a key we have never exchanged with is the shape
+    // impersonation takes: the announcement carrying that name is an
+    // unauthenticated multicast packet anybody can send.
+    QVERIFY(known.conflicts(impostor, QStringLiteral("MacBook")));
+    QCOMPARE(known.expectedFingerprint(QStringLiteral("MacBook")), real);
+
+    // The key we do know is never a conflict, whatever it calls itself.
+    QVERIFY(!known.conflicts(real, QStringLiteral("MacBook")));
+
+    // And a name we have never seen is not suspicious, only new. Warning on
+    // first contact would train people to dismiss the warning.
+    QVERIFY(!known.conflicts(impostor, QStringLiteral("Somebody Else")));
+
+    // Case is not part of the comparison: implementations differ on it.
+    QVERIFY(!known.conflicts(real.toLower(), QStringLiteral("MacBook")));
+
+    known.forgetAll();
+}
+
+void TestSecurity::treatsARenameAsTheOwnersBusiness()
+{
+    KnownDevices known;
+    known.forgetAll();
+
+    const QString key = QString(64, QLatin1Char('C'));
+    known.remember(key, QStringLiteral("Old Name"));
+    known.remember(key, QStringLiteral("New Name"));
+
+    // The key is the identity; the name is a label its owner chose and may
+    // change. Only the reverse - a name moving to another key - is a warning.
+    QCOMPARE(known.aliasFor(key), QStringLiteral("New Name"));
+    QVERIFY(!known.conflicts(key, QStringLiteral("New Name")));
+    QCOMPARE(known.count(), 1);
+
+    known.forgetAll();
+}
+
+void TestSecurity::survivesARestart()
+{
+    const QString key = QString(64, QLatin1Char('D'));
+
+    {
+        KnownDevices known;
+        known.forgetAll();
+        known.remember(key, QStringLiteral("Persistent"));
+    }
+
+    // A memory that did not survive a restart would make every launch a first
+    // contact, which is the same as having none.
+    KnownDevices reloaded;
+    QVERIFY(reloaded.isKnown(key));
+    QCOMPARE(reloaded.aliasFor(key), QStringLiteral("Persistent"));
+
+    reloaded.forget(key);
+    QVERIFY(!reloaded.isKnown(key));
+
+    reloaded.forgetAll();
 }
 
 void TestSecurity::rateLimiterLetsHonestMistakesThrough()

@@ -82,9 +82,25 @@ the same one the official apps use.
 What that does and does not buy you:
 
 - A passive eavesdropper on the Wi-Fi sees nothing but ciphertext.
-- Someone who can both intercept traffic *and* forge the multicast
-  announcement could still substitute their own key. Raising the bar that far
-  is what a self-signed system can do; it is not the same as a CA.
+- Someone who redirects your traffic — ARP spoofing, a rogue access point —
+  cannot produce a certificate matching the announced fingerprint, so the
+  transfer **fails instead of leaking**.
+- **Discovery is not authenticated, and pinning alone cannot fix that.** The
+  announcement carrying a device's name is a plain multicast packet; anyone on
+  the network can send one claiming any name, with their own fingerprint.
+  Pinning proves you reached the device that announced itself, not that the
+  announcement was honest.
+
+  What narrows it is trust on first use: once a transfer with a device
+  completes, its key is recorded against its name. A name you have used
+  before turning up under a different key is flagged in red and requires an
+  explicit confirmation, with both fingerprints shown side by side. The first
+  contact is still unverified, which is why the full fingerprint is on the
+  device details page and in About — compare them out of band once and you
+  are anchored.
+- The receiving side checks that a sender's certificate matches the
+  fingerprint it claims, so the name on the accept prompt is not simply a
+  string the sender chose.
 - Encryption can be turned off in Settings for interoperability. The main page
   says **Not encrypted** in red the whole time it is off.
 
@@ -106,6 +122,26 @@ Other hardening, all of it covered by tests:
 
 The PIN and the accept prompt protect against *unwanted* transfers; the
 encryption protects against *watched* ones. They are different problems.
+
+### At rest
+
+Sailfish keeps `/home` under LUKS, unlocked by the security code at boot, so
+everything below is already encrypted on a powered-off device — and no
+app-level encryption could add to that, because an app that receives files
+while the phone is locked must be able to read its own keys unattended.
+Anything it can decrypt without you, an attacker with the same file access can
+decrypt too.
+
+What the app does on top of that:
+
+| | |
+| --- | --- |
+| PIN | never stored — salted PBKDF2-SHA256, 120 000 iterations |
+| TLS private key, settings, history, known devices | owner-only (`0600`), inside the Sailjail sandbox, so no other app can read them |
+| Received files | your download folder, ordinary permissions — they are yours to open |
+
+The history holds file names, peer names and destination paths. If that
+metadata is unwelcome, it can be turned off in Settings.
 
 ## Building
 

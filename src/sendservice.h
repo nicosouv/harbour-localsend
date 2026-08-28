@@ -12,6 +12,7 @@
 
 class AppSettings;
 class HistoryModel;
+class KnownDevices;
 class QFile;
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -33,6 +34,10 @@ public:
     SendService(AppSettings *settings, TransferModel *transfer,
                 HistoryModel *history, QNetworkAccessManager *network,
                 QObject *parent = 0);
+
+    // Supplies the trust-on-first-use memory. A completed send records the
+    // receiver's key against its name there.
+    void setKnownDevices(KnownDevices *known);
 
     bool isBusy() const;
 
@@ -72,6 +77,7 @@ private:
     TransferModel *m_transfer;
     HistoryModel *m_history;
     QNetworkAccessManager *m_network;
+    KnownDevices *m_known;
 
     DeviceInfo m_peer;
     QString m_sessionId;

@@ -7,6 +7,7 @@
 
 #include "deviceinfo.h"
 
+class KnownDevices;
 class QTimer;
 
 // The devices we can currently see. Keyed by fingerprint, because a phone that
@@ -33,10 +34,16 @@ public:
         ProtocolRole,
         DownloadRole,
         LastSeenRole,
-        StaleRole
+        StaleRole,
+        KnownRole,      // we have completed a transfer with this key before
+        ConflictRole    // this name is on record under a different key
     };
 
     explicit DeviceModel(QObject *parent = 0);
+
+    // Supplies the trust-on-first-use memory the Known and Conflict roles are
+    // read from. Without it both are simply false.
+    void setKnownDevices(KnownDevices *known);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant data(const QModelIndex &index, int role) const;
@@ -71,6 +78,7 @@ private:
     int insertionPoint(const DeviceInfo &device) const;
 
     QList<DeviceInfo> m_devices;
+    KnownDevices *m_known;
 };
 
 #endif // DEVICEMODEL_H

@@ -15,6 +15,7 @@
 
 #include "appsettings.h"
 #include "historymodel.h"
+#include "knowndevices.h"
 #include "protocol.h"
 #include "tlsclient.h"
 #include "transfermodel.h"
@@ -38,12 +39,18 @@ SendService::SendService(AppSettings *settings, TransferModel *transfer,
     , m_transfer(transfer)
     , m_history(history)
     , m_network(network)
+    , m_known(0)
     , m_currentFile(0)
     , m_currentRow(-1)
     , m_busy(false)
     , m_cancelled(false)
     , m_pinAttempted(false)
 {
+}
+
+void SendService::setKnownDevices(KnownDevices *known)
+{
+    m_known = known;
 }
 
 bool SendService::isBusy() const
@@ -381,6 +388,11 @@ void SendService::completeTransfer()
                              tr("%1 of %2 files were sent").arg(done).arg(total));
     else
         m_transfer->setState(TransferModel::Failed, tr("Nothing was sent"));
+
+    // Same rule as the receive side: the pairing is recorded once files have
+    // actually moved, never on the strength of an announcement alone.
+    if (m_known && done > 0)
+        m_known->remember(m_peer.fingerprint, m_peer.alias);
 
     writeHistory();
 

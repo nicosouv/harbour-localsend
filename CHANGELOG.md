@@ -40,6 +40,16 @@ First release.
 - Sailjail permissions reduced to what each one actually buys back, justified
   individually in the desktop file
 
+- Devices can be added by address, for networks where neither multicast nor
+  the subnet sweep can reach them; the address is remembered and refreshed
+- Trust on first use: a device's key is recorded against its name once a
+  transfer completes, and a known name arriving under a different key is
+  flagged and needs confirming, with both fingerprints shown
+- The receiving side verifies a sender's certificate against the fingerprint
+  it claims
+- Full fingerprints on the device details and About pages, grouped for
+  reading out loud
+
 ### Notes
 
 - Encryption can be turned off in Settings for interoperability; the main page

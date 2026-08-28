@@ -75,6 +75,10 @@
         <source>Version</source>
         <translation>Versjon</translation>
     </message>
+    <message>
+        <source>What other devices know this one by. Read it out to somebody to let them confirm it really is you they are sending to.</source>
+        <translation>Det andre enheter kjenner denne igjen på. Les det opp for noen så de kan bekrefte at det virkelig er deg de sender til.</translation>
+    </message>
 </context>
 <context>
     <name>AddDevicePage</name>
@@ -174,6 +178,10 @@
         <source>Send staged files</source>
         <translation>Send de klargjorte filene</translation>
     </message>
+    <message>
+        <source>This name has used a different key before</source>
+        <translation>Dette navnet har brukt en annen nøkkel før</translation>
+    </message>
 </context>
 <context>
     <name>HistoryPage</name>
@@ -236,6 +244,10 @@
 <context>
     <name>MainPage</name>
     <message>
+        <source>A device with this name used a different key before. Nothing stops one device on a network from announcing another one's name.</source>
+        <translation>En enhet med dette navnet brukte en annen nøkkel før. Ingenting hindrer en enhet på nettverket i å kunngjøre en annens navn.</translation>
+    </message>
+    <message>
         <source>About</source>
         <translation>Om</translation>
     </message>
@@ -252,8 +264,16 @@
         <translation>Adresse</translation>
     </message>
     <message>
+        <source>Before</source>
+        <translation>Før</translation>
+    </message>
+    <message>
         <source>Clear selection</source>
         <translation>Tøm utvalget</translation>
+    </message>
+    <message>
+        <source>Compare the fingerprint against the other device before continuing. Sending confirms the new key and it will not ask again.</source>
+        <translation>Sammenlign fingeravtrykket med det den andre enheten viser før du fortsetter. Å sende bekrefter den nye nøkkelen, og du blir ikke spurt igjen.</translation>
     </message>
     <message>
         <source>Device</source>
@@ -270,6 +290,10 @@
     <message>
         <source>Fingerprint</source>
         <translation>Fingeravtrykk</translation>
+    </message>
+    <message>
+        <source>First time</source>
+        <translation>Første gang</translation>
     </message>
     <message>
         <source>History</source>
@@ -304,6 +328,10 @@
         <translation>Lytter ikke</translation>
     </message>
     <message>
+        <source>Now</source>
+        <translation>Nå</translation>
+    </message>
+    <message>
         <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
         <translation>Åpne LocalSend på en annen enhet på samme nettverk. Den bør dukke opp her i løpet av noen sekunder. Hvis ikke, dra ned: Søk gjennom alle adresser går gjennom hele subnettet, og Legg til via adresse når en enhet som står et helt annet sted.</translation>
     </message>
@@ -336,8 +364,20 @@
         <translation>Søk gjennom alle adresser</translation>
     </message>
     <message>
+        <source>Seen before</source>
+        <translation>Sett før</translation>
+    </message>
+    <message>
         <source>Select files to send</source>
         <translation>Velg filer å sende</translation>
+    </message>
+    <message>
+        <source>Send anyway</source>
+        <translation>Send likevel</translation>
+    </message>
+    <message>
+        <source>Send anyway?</source>
+        <translation>Sende likevel?</translation>
     </message>
     <message>
         <source>Send files</source>
@@ -360,6 +400,10 @@
         <translation>Foreslå et annet</translation>
     </message>
     <message>
+        <source>The only thing that identifies a device. Compare it against what the other device shows to be certain who you are talking to.</source>
+        <translation>Det eneste som identifiserer en enhet. Sammenlign det med det den andre enheten viser, for å være sikker på hvem du snakker med.</translation>
+    </message>
+    <message>
         <source>This network is blocking discovery. Pull down and choose Scan network.</source>
         <translation>Dette nettverket blokkerer oppdagelse. Dra ned og velg Søk i nettverket.</translation>
     </message>
@@ -374,6 +418,14 @@
     <message>
         <source>Unknown</source>
         <translation>Ukjent</translation>
+    </message>
+    <message>
+        <source>Yes, key matches</source>
+        <translation>Ja, nøkkelen stemmer</translation>
+    </message>
+    <message>
+        <source>You have sent to a device called %1 before, but it used a different key. Either it was reinstalled, or something else on this network is using its name.</source>
+        <translation>Du har sendt til en enhet som heter %1 før, men den brukte en annen nøkkel. Enten er den installert på nytt, eller så bruker noe annet på nettverket navnet dens.</translation>
     </message>
     <message>
         <source>Your device name</source>

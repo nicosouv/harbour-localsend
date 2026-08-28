@@ -25,12 +25,18 @@ Item {
     opacity: stale ? 0.4 : 1.0
     Behavior on opacity { FadeAnimation { duration: 300 } }
 
+    // A device whose name has been seen under another key is ringed in the
+    // error colour rather than its own, so the warning is visible before any
+    // text is read.
+    property bool conflict: false
+
     Rectangle {
         anchors.fill: parent
         radius: width / 2
-        color: Theme.rgba(badge.accent, 0.16)
-        border.width: Math.max(1, width / 40)
-        border.color: Theme.rgba(badge.accent, 0.45)
+        color: Theme.rgba(badge.conflict ? Theme.errorColor : badge.accent, 0.16)
+        border.width: Math.max(1, width / (badge.conflict ? 18 : 40))
+        border.color: Theme.rgba(badge.conflict ? Theme.errorColor : badge.accent,
+                                 badge.conflict ? 0.9 : 0.45)
     }
 
     DeviceGlyph {

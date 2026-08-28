@@ -17,6 +17,11 @@ ListItem {
     property string fingerprint: ""
     property string address: ""
     property bool stale: false
+    // We have completed a transfer with this key before.
+    property bool known: false
+    // This name is on record under a different key. Somebody may be wearing
+    // it; the announcement that carries a name is not authenticated.
+    property bool conflict: false
     // What a tap does, which the tray decides: with files staged it sends,
     // with an empty tray it opens the picker first.
     property bool sendsImmediately: false
@@ -40,6 +45,7 @@ ListItem {
         fingerprint: delegate.fingerprint
         deviceType: delegate.deviceType
         stale: delegate.stale
+        conflict: delegate.conflict
     }
 
     Column {
@@ -70,6 +76,18 @@ ListItem {
             color: delegate.highlighted ? Theme.secondaryHighlightColor
                                         : Theme.secondaryColor
             opacity: delegate.stale ? 0.5 : 1.0
+        }
+
+        // Loud on purpose. This is the one thing on the page that says a
+        // device may not be who it says it is, and the whole attack it warns
+        // about consists of looking exactly like a device you trust.
+        Label {
+            width: parent.width
+            visible: delegate.conflict
+            text: qsTr("This name has used a different key before")
+            wrapMode: Text.Wrap
+            font.pixelSize: Theme.fontSizeTiny
+            color: Theme.errorColor
         }
     }
 

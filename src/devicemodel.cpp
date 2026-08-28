@@ -2,6 +2,8 @@
 
 #include <QDateTime>
 
+#include "knowndevices.h"
+
 namespace {
 
 // A device is drawn dimmed once it has been quiet this long, and dropped
@@ -13,7 +15,25 @@ const int StaleAfterSeconds = 50;
 
 DeviceModel::DeviceModel(QObject *parent)
     : QAbstractListModel(parent)
+    , m_known(0)
 {
+}
+
+void DeviceModel::setKnownDevices(KnownDevices *known)
+{
+    if (m_known == known)
+        return;
+
+    m_known = known;
+    if (m_known) {
+        // Forgetting a device, or recording a new one, changes what every row
+        // says about itself.
+        connect(m_known, &KnownDevices::changed, this, [this]() {
+            if (m_devices.isEmpty())
+                return;
+            emit dataChanged(index(0, 0), index(m_devices.count() - 1, 0));
+        });
+    }
 }
 
 int DeviceModel::rowCount(const QModelIndex &parent) const
@@ -40,6 +60,10 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const
     case StaleRole:
         return device.lastSeen.isValid()
             && device.lastSeen.secsTo(QDateTime::currentDateTime()) > StaleAfterSeconds;
+    case KnownRole:
+        return m_known && m_known->isKnown(device.fingerprint);
+    case ConflictRole:
+        return m_known && m_known->conflicts(device.fingerprint, device.alias);
     default:              return QVariant();
     }
 }
@@ -57,6 +81,8 @@ QHash<int, QByteArray> DeviceModel::roleNames() const
     roles[DownloadRole] = "download";
     roles[LastSeenRole] = "lastSeen";
     roles[StaleRole] = "stale";
+    roles[KnownRole] = "known";
+    roles[ConflictRole] = "conflict";
     return roles;
 }
 
@@ -185,6 +211,12 @@ QVariantMap DeviceModel::get(int row) const
     map.insert(QStringLiteral("port"), device.port);
     map.insert(QStringLiteral("protocol"), device.protocol);
     map.insert(QStringLiteral("download"), device.download);
+    map.insert(QStringLiteral("known"),
+               m_known && m_known->isKnown(device.fingerprint));
+    map.insert(QStringLiteral("conflict"),
+               m_known && m_known->conflicts(device.fingerprint, device.alias));
+    map.insert(QStringLiteral("expectedFingerprint"),
+               m_known ? m_known->expectedFingerprint(device.alias) : QString());
     return map;
 }
 

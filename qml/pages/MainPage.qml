@@ -43,6 +43,19 @@ Page {
         if (transfer.active)
             return
 
+        // A name we have used before, arriving under a key we have not, is
+        // what impersonation looks like from here. It is also what a genuine
+        // reinstall looks like, so this asks rather than refuses - but it asks
+        // before the files move, not after.
+        if (device.conflict) {
+            pageStack.push(conflictDialogComponent, { device: device })
+            return
+        }
+
+        page.dispatchSend(device)
+    }
+
+    function dispatchSend(device) {
         sender.sendFiles(device, selection.paths())
         pageStack.push(Qt.resolvedUrl("TransferPage.qml"))
     }
@@ -312,6 +325,8 @@ Page {
             fingerprint: model.fingerprint
             address: model.address
             stale: model.stale
+            known: model.known
+            conflict: model.conflict
             sendsImmediately: !selection.empty
 
             onSendRequested: page.startSend(deviceModel.get(index))
@@ -352,6 +367,59 @@ Page {
             }
 
             onRejected: page.pendingDevice = null
+        }
+    }
+
+    Component {
+        id: conflictDialogComponent
+
+        Dialog {
+            id: conflictDialog
+            property var device: ({})
+
+            allowedOrientations: defaultAllowedOrientations
+
+            Column {
+                width: parent.width
+                spacing: Theme.paddingMedium
+
+                DialogHeader {
+                    title: qsTr("Send anyway?")
+                    acceptText: qsTr("Send anyway")
+                }
+
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - Theme.horizontalPageMargin * 2
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.errorColor
+                    text: qsTr("You have sent to a device called %1 before, but it used a different key. Either it was reinstalled, or something else on this network is using its name.")
+                        .arg(conflictDialog.device.alias || "")
+                }
+
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - Theme.horizontalPageMargin * 2
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    color: Theme.secondaryColor
+                    text: qsTr("Compare the fingerprint against the other device before continuing. Sending confirms the new key and it will not ask again.")
+                }
+
+                DetailItem {
+                    label: qsTr("Now")
+                    value: Formatting.fingerprintGroups(
+                               (conflictDialog.device.fingerprint || "").substring(0, 32))
+                }
+                DetailItem {
+                    label: qsTr("Before")
+                    value: Formatting.fingerprintGroups(
+                               (conflictDialog.device.expectedFingerprint || "").substring(0, 32))
+                }
+            }
+
+            onAccepted: page.dispatchSend(conflictDialog.device)
         }
     }
 
@@ -434,8 +502,43 @@ Page {
                         value: detailPage.device.protocol || "http"
                     }
                     DetailItem {
-                        label: qsTr("Fingerprint")
-                        value: (detailPage.device.fingerprint || "").substring(0, 16)
+                        label: qsTr("Seen before")
+                        value: detailPage.device.known ? qsTr("Yes, key matches")
+                                                       : qsTr("First time")
+                    }
+
+                    SectionHeader { text: qsTr("Fingerprint") }
+
+                    Label {
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - Theme.horizontalPageMargin * 2
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: Theme.secondaryColor
+                        text: qsTr("The only thing that identifies a device. Compare it against what the other device shows to be certain who you are talking to.")
+                    }
+
+                    // In full, and grouped. Sixteen characters were enough to
+                    // look official and not enough to check anything against.
+                    Label {
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - Theme.horizontalPageMargin * 2
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        font.family: "monospace"
+                        color: detailPage.device.conflict ? Theme.errorColor
+                                                          : Theme.highlightColor
+                        text: Formatting.fingerprintGroups(
+                                  detailPage.device.fingerprint || "")
+                    }
+
+                    Label {
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - Theme.horizontalPageMargin * 2
+                        visible: detailPage.device.conflict === true
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: Theme.errorColor
+                        text: qsTr("A device with this name used a different key before. Nothing stops one device on a network from announcing another one's name.")
                     }
 
                     Item { width: 1; height: Theme.paddingLarge }

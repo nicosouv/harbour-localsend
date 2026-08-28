@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "../components/Formatting.js" as Formatting
 
 Page {
     id: page
@@ -46,9 +47,24 @@ Page {
                 value: appSettings.encrypted ? qsTr("HTTPS (encrypted)")
                                              : qsTr("HTTP (not encrypted)")
             }
-            DetailItem {
-                label: qsTr("Fingerprint")
-                value: appSettings.fingerprint.substring(0, 16)
+            SectionHeader { text: qsTr("Fingerprint") }
+
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - Theme.horizontalPageMargin * 2
+                wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.secondaryColor
+                text: qsTr("What other devices know this one by. Read it out to somebody to let them confirm it really is you they are sending to.")
+            }
+
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - Theme.horizontalPageMargin * 2
+                font.pixelSize: Theme.fontSizeExtraSmall
+                font.family: "monospace"
+                color: Theme.highlightColor
+                text: Formatting.fingerprintGroups(appSettings.fingerprint)
             }
 
             SectionHeader { text: qsTr("Good to know") }

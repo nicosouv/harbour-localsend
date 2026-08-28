@@ -75,6 +75,10 @@
         <source>Version</source>
         <translation>Versione</translation>
     </message>
+    <message>
+        <source>What other devices know this one by. Read it out to somebody to let them confirm it really is you they are sending to.</source>
+        <translation>Ciò da cui gli altri dispositivi riconoscono questo. Leggila a qualcuno perché possa confermare che sta inviando davvero a te.</translation>
+    </message>
 </context>
 <context>
     <name>AddDevicePage</name>
@@ -174,6 +178,10 @@
         <source>Send staged files</source>
         <translation>Invia i file preparati</translation>
     </message>
+    <message>
+        <source>This name has used a different key before</source>
+        <translation>Questo nome ha già usato un'altra chiave</translation>
+    </message>
 </context>
 <context>
     <name>HistoryPage</name>
@@ -236,6 +244,10 @@
 <context>
     <name>MainPage</name>
     <message>
+        <source>A device with this name used a different key before. Nothing stops one device on a network from announcing another one's name.</source>
+        <translation>Un dispositivo con questo nome usava un'altra chiave. Nulla impedisce a un dispositivo in rete di annunciare il nome di un altro.</translation>
+    </message>
+    <message>
         <source>About</source>
         <translation>Informazioni</translation>
     </message>
@@ -252,8 +264,16 @@
         <translation>Indirizzo</translation>
     </message>
     <message>
+        <source>Before</source>
+        <translation>Prima</translation>
+    </message>
+    <message>
         <source>Clear selection</source>
         <translation>Svuota la selezione</translation>
+    </message>
+    <message>
+        <source>Compare the fingerprint against the other device before continuing. Sending confirms the new key and it will not ask again.</source>
+        <translation>Confronta l'impronta con quella dell'altro dispositivo prima di continuare. Inviare conferma la nuova chiave e non verrà più chiesto.</translation>
     </message>
     <message>
         <source>Device</source>
@@ -270,6 +290,10 @@
     <message>
         <source>Fingerprint</source>
         <translation>Impronta</translation>
+    </message>
+    <message>
+        <source>First time</source>
+        <translation>Prima volta</translation>
     </message>
     <message>
         <source>History</source>
@@ -304,6 +328,10 @@
         <translation>Non in ascolto</translation>
     </message>
     <message>
+        <source>Now</source>
+        <translation>Adesso</translation>
+    </message>
+    <message>
         <source>Open LocalSend on another device on the same network. It should turn up here within a few seconds. If it does not, pull down: Search every address goes through the whole subnet, and Add by address reaches one that is somewhere else entirely.</source>
         <translation>Apri LocalSend su un altro dispositivo della stessa rete. Dovrebbe comparire qui in pochi secondi. Altrimenti tira verso il basso: Sonda ogni indirizzo percorre l'intera sottorete, e Aggiungi per indirizzo raggiunge un dispositivo che sta altrove.</translation>
     </message>
@@ -336,8 +364,20 @@
         <translation>Sonda ogni indirizzo</translation>
     </message>
     <message>
+        <source>Seen before</source>
+        <translation>Già incontrato</translation>
+    </message>
+    <message>
         <source>Select files to send</source>
         <translation>Seleziona i file da inviare</translation>
+    </message>
+    <message>
+        <source>Send anyway</source>
+        <translation>Invia comunque</translation>
+    </message>
+    <message>
+        <source>Send anyway?</source>
+        <translation>Inviare comunque?</translation>
     </message>
     <message>
         <source>Send files</source>
@@ -360,6 +400,10 @@
         <translation>Proponine un altro</translation>
     </message>
     <message>
+        <source>The only thing that identifies a device. Compare it against what the other device shows to be certain who you are talking to.</source>
+        <translation>L'unica cosa che identifica un dispositivo. Confrontala con quella mostrata dall'altro per essere certo con chi stai parlando.</translation>
+    </message>
+    <message>
         <source>This network is blocking discovery. Pull down and choose Scan network.</source>
         <translation>Questa rete blocca il rilevamento. Tira verso il basso e scegli Scansiona la rete.</translation>
     </message>
@@ -374,6 +418,14 @@
     <message>
         <source>Unknown</source>
         <translation>Sconosciuto</translation>
+    </message>
+    <message>
+        <source>Yes, key matches</source>
+        <translation>Sì, la chiave corrisponde</translation>
+    </message>
+    <message>
+        <source>You have sent to a device called %1 before, but it used a different key. Either it was reinstalled, or something else on this network is using its name.</source>
+        <translation>Hai già inviato a un dispositivo chiamato %1, ma usava un'altra chiave. O è stato reinstallato, o qualcos'altro su questa rete ne sta usando il nome.</translation>
     </message>
     <message>
         <source>Your device name</source>

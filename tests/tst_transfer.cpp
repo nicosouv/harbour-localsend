@@ -11,6 +11,7 @@
 #include <QtTest>
 
 #include "appsettings.h"
+#include "certificate.h"
 #include "devicemodel.h"
 #include "discovery.h"
 #include "historymodel.h"
@@ -39,6 +40,7 @@ private slots:
     void announcesAnUppercaseFingerprint();
     void acceptsEitherFingerprintCasing();
     void refusesAPeerWhoseCertificateDoesNotMatch();
+    void refusesASenderClaimingSomebodyElsesFingerprint();
     void receiverCanDeclineTheRequest();
     void manualAcceptStartsTheTransfer();
     void pinIsRequiredAndAccepted();
@@ -342,6 +344,68 @@ void TestTransfer::refusesAPeerWhoseCertificateDoesNotMatch()
     // And nothing was written on the other side either: the request never got
     // as far as a session.
     QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/not-sent.bin")));
+    QCOMPARE(m_incoming->stateName(), QStringLiteral("idle"));
+}
+
+void TestTransfer::refusesASenderClaimingSomebodyElsesFingerprint()
+{
+    // The mirror of the pinning test, on the receiving side. A sender puts its
+    // fingerprint in the prepare-upload body, and that is the identity the
+    // accept prompt shows. If it were taken on trust, anybody could arrive
+    // wearing the name and key of a device the recipient has exchanged with
+    // before, and the prompt would vouch for them.
+    m_settings->setSecureTransport(true);
+    QVERIFY(m_settings->isEncrypted());
+    restartReceiver();
+
+    // A second identity, standing in for a different device on the network.
+    QTemporaryDir elsewhere;
+    QVERIFY(elsewhere.isValid());
+    Certificate impostor;
+    QVERIFY2(impostor.ensure(elsewhere.path()), qPrintable(impostor.lastError()));
+    QVERIFY(impostor.fingerprint() != m_settings->fingerprint());
+
+    QJsonObject descriptor;
+    descriptor.insert(QStringLiteral("id"), QStringLiteral("f"));
+    descriptor.insert(QStringLiteral("fileName"), QStringLiteral("borrowed.txt"));
+    descriptor.insert(QStringLiteral("size"), 4);
+
+    QJsonObject files;
+    files.insert(QStringLiteral("f"), descriptor);
+
+    QJsonObject info;
+    info.insert(QStringLiteral("alias"), QStringLiteral("Someone Trusted"));
+    // Claims a key it does not hold: it will handshake as the impostor.
+    info.insert(QStringLiteral("fingerprint"),
+                QString(64, QLatin1Char('E')));
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("info"), info);
+    payload.insert(QStringLiteral("files"), files);
+
+    QUrl url(QStringLiteral("https://127.0.0.1:%1/api/localsend/v2/prepare-upload")
+             .arg(m_settings->port()));
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader,
+                      QStringLiteral("application/json"));
+    TlsClient::configure(request, impostor.certificate(), impostor.privateKey());
+
+    QNetworkReply *reply = m_network->post(
+        request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    TlsClient::acceptUnknown(reply);
+
+    QEventLoop loop;
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    QTimer::singleShot(8000, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    const int status = reply->attribute(
+        QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    reply->deleteLater();
+
+    QCOMPARE(status, 403);
+    // And nobody was asked about it: the request never became a session.
     QCOMPARE(m_incoming->stateName(), QStringLiteral("idle"));
 }
 

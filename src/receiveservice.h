@@ -14,6 +14,7 @@ class Discovery;
 class HistoryModel;
 class HttpConnection;
 class HttpServer;
+class KnownDevices;
 class QFile;
 class QNetworkAccessManager;
 class QTimer;
@@ -38,6 +39,10 @@ public:
     ReceiveService(AppSettings *settings, Discovery *discovery,
                    TransferModel *transfer, HistoryModel *history,
                    QNetworkAccessManager *network, QObject *parent = 0);
+
+    // Supplies the trust-on-first-use memory. A completed receive records
+    // the sender's key against its name there.
+    void setKnownDevices(KnownDevices *known);
 
     bool isListening() const;
     QString listenError() const;
@@ -110,6 +115,7 @@ private:
     HistoryModel *m_history;
     QNetworkAccessManager *m_network;
     HttpServer *m_server;
+    KnownDevices *m_known;
 
     // Guarded rather than raw: the connection deletes itself the instant its
     // socket closes, which can happen between two lines of a handler.

@@ -82,6 +82,9 @@ HttpConnection::HttpConnection(QTcpSocket *socket, QObject *parent)
     if (m_peerAddress.startsWith(QLatin1String("::ffff:")))
         m_peerAddress = m_peerAddress.mid(7);
 
+    if (QSslSocket *secure = qobject_cast<QSslSocket *>(m_socket))
+        m_peerCertificate = secure->peerCertificate();
+
     connect(m_socket, &QTcpSocket::readyRead, this, &HttpConnection::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &HttpConnection::onDisconnected);
 
@@ -106,6 +109,7 @@ QString HttpConnection::method() const { return m_method; }
 QString HttpConnection::path() const { return m_path; }
 QByteArray HttpConnection::body() const { return m_body; }
 QString HttpConnection::peerAddress() const { return m_peerAddress; }
+QSslCertificate HttpConnection::peerCertificate() const { return m_peerCertificate; }
 qint64 HttpConnection::contentLength() const { return m_contentLength; }
 qint64 HttpConnection::bodyReceived() const { return m_bodyReceived; }
 bool HttpConnection::hasResponded() const { return m_state == Responded; }
@@ -537,10 +541,13 @@ void HttpServer::incomingConnection(qintptr socketDescriptor)
     socket->setLocalCertificate(m_certificate);
     socket->setPrivateKey(m_key);
     socket->setProtocol(QSsl::TlsV1_2OrLater);
-    // We do not authenticate senders with certificates - the protocol has no
-    // notion of a client identity - so asking for one would only fail
-    // handshakes with peers that have none to offer.
-    socket->setPeerVerifyMode(QSslSocket::VerifyNone);
+    // QueryPeer, not VerifyNone: it asks for a client certificate so the
+    // receive service can check it against the fingerprint the sender puts in
+    // its prepare-upload body, which is the only thing making a sender's
+    // claimed identity mean anything. Unlike VerifyPeer it does not fail the
+    // handshake for a peer that has none to offer, so nothing that worked
+    // before stops working.
+    socket->setPeerVerifyMode(QSslSocket::QueryPeer);
 
     // Nothing may read from the socket until the handshake is done, so the
     // HttpConnection is not built until then.
