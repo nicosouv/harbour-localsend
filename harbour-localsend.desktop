@@ -73,5 +73,7 @@ Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia;Me
 OrganizationName=harbour-localsend
 ApplicationName=harbour-localsend
 # Lets the share sheet start the app when it is not already running. Without
-# it, sharing only works while LocalSend happens to be open.
-ExecDBus=/usr/bin/harbour-localsend
+# it, sharing only works while LocalSend happens to be open. It must be the
+# bare application name: the validator rejects an absolute path here, even
+# though Exec= above takes one.
+ExecDBus=harbour-localsend

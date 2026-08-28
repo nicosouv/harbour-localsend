@@ -100,6 +100,16 @@ def check():
                         f"[X-Sailjail]: permission is not allowed by "
                         f"Harbour: {name}")
 
+        # The validator wants the bare application name, optionally with one
+        # simple argument. An absolute path is rejected, which is easy to get
+        # wrong because Exec= in the same file happily takes one.
+        if key == "ExecDBus":
+            if not re.match(r"^harbour-localsend([ \t]+[A-Za-z_-][A-Z0-9a-z_-]*)?$",
+                            value.strip()):
+                problems.append(
+                    f"[X-Sailjail]: ExecDBus must be \"harbour-localsend\" "
+                    f"(optionally with one argument), not: {value.strip()}")
+
         if key == "ApplicationName":
             if not re.match(r"^[A-Za-z_-][A-Z0-9a-z_-]*$", value.strip()):
                 problems.append(
