@@ -46,11 +46,6 @@ SupportsMultipleFiles=yes
 #   Music           ) picker can read from, and so what can be sent.
 #   RemovableMedia  Base sets "disable-mnt", which hides the SD card. Without
 #                   it, media kept on a card can be neither sent nor saved to.
-#   Sharing         Grants "dbus-user.talk org.sailfishos.share" and the
-#                   matching broadcast. Needed to appear in the share sheet as
-#                   a destination - see the [X-Share Method files] section
-#                   above. It buys the share framework, not an account or the
-#                   Internet.
 #   MediaIndexing   Grants "dbus-user.talk org.freedesktop.Tracker3.Miner.Files".
 #                   The file picker's Documents, Images, Videos, Music and
 #                   Downloads tabs are all DocumentGalleryModel, which is
@@ -61,8 +56,15 @@ SupportsMultipleFiles=yes
 #
 # Deliberately absent: UserDirs, which is Documents, Downloads, Music,
 # Pictures, Videos and PublicDir in one - listing the five we use leaves
-# ~/Public alone.
-Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia;MediaIndexing;Sharing
+# ~/Public alone. Sharing is absent too, and cannot be added: Harbour does not
+# allow it. Being a share target does not appear to need it - the share
+# framework calls us on the bus name Sailjail already grants, rather than the
+# other way round.
+#
+# Nothing in this section may contain an opening bracket, not even inside a
+# comment. Harbour's validator cuts the section off at the first one and then
+# reports it as empty; scripts/check_desktop.py catches that here instead.
+Permissions=Internet;Downloads;Documents;Pictures;Videos;Music;RemovableMedia;MediaIndexing
 # These two are not cosmetic. Sailjail gives the app
 # ~/.local/share/<OrganizationName>/<ApplicationName> and lets it own exactly
 # the bus name <OrganizationName>.<ApplicationName>, which is the name the

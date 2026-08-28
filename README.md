@@ -212,7 +212,7 @@ Nothing here needs a device, and only the RPM needs the Sailfish SDK.
 docker compose run --rm tests     # unit tests, including a loopback transfer
 docker compose run --rm syntax    # compile-check every C++ file
 docker compose run --rm qmllint   # parse every QML file
-docker compose run --rm checks    # Qt 5.6 compatibility, QML traps, translations
+docker compose run --rm checks    # Qt 5.6, QML traps, the .desktop file, translations
 docker compose run --rm sanitize  # the same tests under ASan and UBSan
 docker compose run --rm fuzz      # arbitrary bytes into the HTTP parser
 docker compose run --rm icons     # redraw the app icon
@@ -252,10 +252,11 @@ are justified line by line in `harbour-localsend.desktop`.
 | `Documents`, `Pictures`, `Videos`, `Music` | Un-blacklists each directory so the picker can read from it. |
 | `RemovableMedia` | Base sets `disable-mnt`, which hides the SD card. |
 | `MediaIndexing` | Talk to Tracker. The picker's Documents/Images/Videos/Music/Downloads tabs are all tracker-backed and come up empty without it. |
-| `Sharing` | Appear in the share sheet as a destination. It buys `org.sailfishos.share`, not an account and not the Internet. |
-
 Deliberately not requested: `UserDirs` — it would bundle `PublicDir` in with
-the five directories above.
+the five directories above. `Sharing` is not requested either, and could not
+be: Harbour does not allow it. Being a share *target* turns out not to need
+it — the share framework calls the app on the bus name Sailjail already
+grants, rather than the app calling the framework.
 
 Being a share target is done with `Sailfish.Share`'s `ShareProvider`, which is
 on the Harbour allowed list and lives entirely inside the app: the alternative,

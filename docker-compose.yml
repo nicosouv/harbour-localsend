@@ -79,6 +79,7 @@ services:
     command: >
       bash -c "python3 scripts/check_qt56.py
       && python3 scripts/check_qml.py
+      && python3 scripts/check_desktop.py
       && python3 scripts/check_translations.py"
 
   # App icon: renders the artwork at every size the RPM ships. Run when the
