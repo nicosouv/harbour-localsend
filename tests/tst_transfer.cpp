@@ -47,6 +47,7 @@ private slots:
     void wrongPinIsRefused();
     void rejectsASecondSessionWhileBusy();
     void fileNamesCannotEscapeTheDestination();
+    void anUploadCannotExceedTheSizeItDeclared();
 
 private:
     struct Reply
@@ -588,6 +589,50 @@ void TestTransfer::fileNamesCannotEscapeTheDestination()
 
     const QDir above(m_home->path() + QStringLiteral("/../.."));
     QVERIFY(!QFile::exists(above.absolutePath() + QStringLiteral("/escaped.txt")));
+}
+
+void TestTransfer::anUploadCannotExceedTheSizeItDeclared()
+{
+    // Permission is granted against a stated size - that is the number the
+    // person saw on the accept page - but the bytes arrive in a separate
+    // request that could carry any amount. Accepting one small photo must not
+    // authorise writing until the disk fills.
+    QJsonObject descriptor;
+    descriptor.insert(QStringLiteral("id"), QStringLiteral("small"));
+    descriptor.insert(QStringLiteral("fileName"), QStringLiteral("small.bin"));
+    descriptor.insert(QStringLiteral("size"), 16);
+
+    QJsonObject files;
+    files.insert(QStringLiteral("small"), descriptor);
+
+    QJsonObject info;
+    info.insert(QStringLiteral("alias"), QStringLiteral("Greedy"));
+    info.insert(QStringLiteral("fingerprint"), QStringLiteral("greedy"));
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("info"), info);
+    payload.insert(QStringLiteral("files"), files);
+
+    const Reply prepared = post(QStringLiteral("/prepare-upload"),
+                                QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    QCOMPARE(prepared.status, 200);
+
+    const QJsonObject response = QJsonDocument::fromJson(prepared.body).object();
+    const QString sessionId = response.value(QStringLiteral("sessionId")).toString();
+    const QString token = response.value(QStringLiteral("files")).toObject()
+                          .value(QStringLiteral("small")).toString();
+    QVERIFY(!sessionId.isEmpty());
+
+    const Reply uploaded = post(
+        QStringLiteral("/upload?sessionId=%1&fileId=small&token=%2")
+            .arg(sessionId).arg(token),
+        QByteArray(64 * 1024, 'X'));
+
+    QCOMPARE(uploaded.status, 413);
+
+    // And nothing oversized was left behind under either name.
+    QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/small.bin")));
+    QVERIFY(!QFile::exists(m_home->path() + QStringLiteral("/small.bin.part")));
 }
 
 QTEST_MAIN(TestTransfer)

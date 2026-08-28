@@ -456,8 +456,13 @@ void ReceiveService::handleUploadHeaders(HttpConnection *connection)
     }
 
     m_uploads.insert(connection, upload);
-    connection->streamBodyTo(upload.file);
 
+    // Wired before the body is accepted, not after. streamBodyTo() rejects a
+    // declared length that is already over the ceiling, and that answer can
+    // close the socket inside the same call - which fires closed() while this
+    // handler is still running. Connecting afterwards would leave the entry
+    // in m_uploads pointing at a connection that has since deleted itself,
+    // and the next pass over that table would touch freed memory.
     connect(connection, &HttpConnection::closed,
             this, &ReceiveService::onUploadClosed);
     connect(connection, &HttpConnection::bodyProgress,
@@ -472,6 +477,11 @@ void ReceiveService::handleUploadHeaders(HttpConnection *connection)
 
     m_transfer->setFileStatus(row, TransferModel::FileTransferring);
     m_idleTimer->start();
+
+    // Bounded by what the sender said this file was when it asked permission.
+    // The size in prepare-upload is what the person saw and agreed to; the
+    // bytes arrive in a different request, and only this makes the two match.
+    connection->streamBodyTo(upload.file, m_transfer->entry(row).size);
 }
 
 void ReceiveService::handleUploadFinished(HttpConnection *connection)

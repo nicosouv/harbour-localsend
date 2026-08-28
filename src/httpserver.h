@@ -52,7 +52,14 @@ public:
     // Push the body into `sink` instead of buffering it. Only legal from a
     // headersReady() handler: by requestReady() the body is already gone.
     // Ownership of `sink` stays with the caller.
-    void streamBodyTo(QIODevice *sink);
+    //
+    // `maxBytes` is a hard ceiling, not a hint: a peer states a file's size
+    // when it asks permission and then sends the bytes in a separate request,
+    // and nothing but this makes the second agree with the first. Without it
+    // an accepted transfer of one small photo can keep writing until the disk
+    // is full. -1 means no ceiling, which is only right for a body we are
+    // buffering and have already capped another way.
+    void streamBodyTo(QIODevice *sink, qint64 maxBytes = -1);
 
     // Adds a header to whatever response comes next. Used for the handful of
     // cases where the status code alone is not enough - Retry-After on a 429
@@ -112,6 +119,7 @@ private:
 
     QByteArray m_body;
     QIODevice *m_sink;
+    qint64 m_maxBodyBytes;        // -1 for no ceiling
     qint64 m_contentLength;       // -1 while a chunked body is still arriving
     qint64 m_bodyReceived;
     bool m_chunked;

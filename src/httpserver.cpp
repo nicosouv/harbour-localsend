@@ -19,6 +19,11 @@ const qint64 MaxBufferedBody = 16LL * 1024 * 1024;
 // every byte, and stopped once the request is complete.
 const int IdleTimeoutMs = 60 * 1000;
 
+// How long a refused request may go on sending before the socket is simply
+// cut. Long enough for a peer to finish a modest body and read the answer,
+// short enough that being refused is not a way to hold a connection slot.
+const int DrainTimeoutMs = 5 * 1000;
+
 // Caps how much the kernel hands us per readyRead. Uploads are written to
 // disk synchronously, so a smaller window here keeps memory flat when the
 // network is faster than the storage.
@@ -64,6 +69,7 @@ HttpConnection::HttpConnection(QTcpSocket *socket, QObject *parent)
     , m_idleTimer(new QTimer(this))
     , m_state(ReadingHeaders)
     , m_sink(0)
+    , m_maxBodyBytes(-1)
     , m_contentLength(0)
     , m_bodyReceived(0)
     , m_chunked(false)
@@ -135,13 +141,25 @@ QJsonObject HttpConnection::jsonBody() const
     return document.isObject() ? document.object() : QJsonObject();
 }
 
-void HttpConnection::streamBodyTo(QIODevice *sink)
+void HttpConnection::streamBodyTo(QIODevice *sink, qint64 maxBytes)
 {
     m_sink = sink;
+    m_maxBodyBytes = maxBytes;
+
+    // A declared length already past the ceiling is refused before a byte of
+    // it is read, rather than part-written and then abandoned.
+    if (m_maxBodyBytes >= 0 && m_contentLength > m_maxBodyBytes)
+        fail(413);
 }
 
 void HttpConnection::onIdleTimeout()
 {
+    if (m_state == Responded) {
+        // Answered already, and the peer is still holding the socket open
+        // without saying anything. Nothing left to wait for.
+        m_socket->abort();
+        return;
+    }
     fail(408);
 }
 
@@ -247,6 +265,12 @@ bool HttpConnection::deliver(const QByteArray &data)
         return true;
 
     if (m_sink) {
+        // Checked per block, because a chunked body announces no total at all
+        // and would otherwise run until the disk gave out.
+        if (m_maxBodyBytes >= 0 && m_bodyReceived + data.size() > m_maxBodyBytes) {
+            fail(413);
+            return false;
+        }
         if (m_sink->write(data) != data.size()) {
             fail(500);
             return false;
@@ -407,11 +431,31 @@ void HttpConnection::respond(int status, const QByteArray &payload,
     response += "Connection: close\r\n\r\n";
     response += payload;
 
-    if (m_socket->state() == QAbstractSocket::ConnectedState) {
-        m_socket->write(response);
-        m_socket->flush();
+    if (m_socket->state() != QAbstractSocket::ConnectedState)
+        return;
+
+    m_socket->write(response);
+    m_socket->flush();
+
+    if (m_bodyComplete) {
         m_socket->disconnectFromHost();
+        return;
     }
+
+    // The peer is still sending a body we have just refused. Closing now
+    // would reach it as a reset before it ever read this answer, and it would
+    // report a dead connection rather than the reason - which is how a
+    // deliberate 413 becomes an unexplained network failure.
+    //
+    // So the socket stays open and the rest of the body is read and dropped
+    // (onReadyRead discards once Responded). The peer finishes writing, reads
+    // the response, and closes.
+    //
+    // On a much shorter deadline than the normal idle timeout, though. A peer
+    // that has been refused and then goes quiet is holding a connection slot
+    // for nothing, and there are only so many of those; a minute each would
+    // let two dozen rejected requests take the listener out of service.
+    m_idleTimer->start(DrainTimeoutMs);
 }
 
 void HttpConnection::addHeader(const QByteArray &name, const QByteArray &value)

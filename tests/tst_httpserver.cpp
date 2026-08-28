@@ -58,8 +58,26 @@ QByteArray TestHttpServer::exchange(const QByteArray &request, int timeoutMs)
     // Both ends live in this thread, so the client must never block: a
     // waitForReadyRead() here would stop the event loop the server needs to
     // notice the connection at all, and every exchange would time out.
-    connect(&socket, &QTcpSocket::readyRead, this, [&socket, &response]() {
+    connect(&socket, &QTcpSocket::readyRead, this, [&socket, &response, &finished]() {
         response += socket.readAll();
+
+        // Stop on a complete response rather than only on disconnect. A
+        // request refused mid-body is answered and then drained, so the
+        // server deliberately holds the socket open for a moment - waiting
+        // for the close would make every such test sit out that deadline.
+        const int headerEnd = response.indexOf("\r\n\r\n");
+        if (headerEnd < 0)
+            return;
+
+        const QByteArray head = response.left(headerEnd).toLower();
+        const int marker = head.indexOf("content-length:");
+        if (marker < 0)
+            return;
+
+        const int declared =
+            head.mid(marker + 15, head.indexOf('\r', marker) - marker - 15).trimmed().toInt();
+        if (response.size() - headerEnd - 4 >= declared)
+            finished = true;
     });
     connect(&socket, &QTcpSocket::disconnected, this, [&finished]() {
         finished = true;
