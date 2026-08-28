@@ -61,6 +61,7 @@ ListItem {
         Label {
             width: parent.width
             text: delegate.deviceAlias
+            textFormat: Text.PlainText
             truncationMode: TruncationMode.Fade
             color: delegate.highlighted ? Theme.highlightColor : Theme.primaryColor
             opacity: delegate.stale ? 0.5 : 1.0
@@ -71,6 +72,7 @@ ListItem {
             text: delegate.hardware.length > 0
                   ? delegate.hardware + " · " + delegate.address
                   : delegate.address
+            textFormat: Text.PlainText
             truncationMode: TruncationMode.Fade
             font.pixelSize: Theme.fontSizeExtraSmall
             color: delegate.highlighted ? Theme.secondaryHighlightColor

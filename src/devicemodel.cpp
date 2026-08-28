@@ -11,6 +11,10 @@ namespace {
 // multicast packet never makes a device blink out.
 const int StaleAfterSeconds = 50;
 
+// Far more than any real network holds, and a bound on what an unauthenticated
+// announcement can make us allocate.
+const int MaxDevices = 64;
+
 } // namespace
 
 DeviceModel::DeviceModel(QObject *parent)
@@ -142,6 +146,14 @@ bool DeviceModel::upsert(const DeviceInfo &device)
             const QModelIndex changed = index(existing, 0);
             emit dataChanged(changed, changed);
         }
+        return false;
+    }
+
+    if (m_devices.count() >= MaxDevices) {
+        // Announcements are unauthenticated and cost a peer nothing, so a
+        // flood of made-up fingerprints would otherwise grow this list until
+        // the app ran out of memory. Past this point new devices are ignored;
+        // existing ones above still refresh, and pruning makes room again.
         return false;
     }
 

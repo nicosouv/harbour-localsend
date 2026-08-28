@@ -35,6 +35,23 @@ extern const char *PathLegacyInfo;
 // deviceType values the protocol defines. Anything else is shown as unknown.
 bool isKnownDeviceType(const QString &type);
 
+// Makes a string from the network safe to show and to use as a file name.
+//
+// Strips the characters that let a string lie about what it is. Control
+// characters can blank a line or overwrite what came before it in a log; the
+// Unicode bidirectional overrides are worse, because they reverse how the
+// rest of the text is drawn. A name holding U+202E followed by "gpj.sh"
+// renders as though it ended in ".jpg" while remaining a shell script on
+// disk. The trick is decades old and costs nothing to close.
+//
+// Written out by codepoint rather than shown: a source file carrying one of
+// these is doing the same thing to whoever reads the code, and the compiler
+// warns about it (-Wbidi-chars).
+//
+// Also caps the length: an alias is a label, and a peer sending a megabyte of
+// one is not naming a device.
+QString sanitizeText(const QString &text, int maxLength);
+
 // A LocalSend-style "Nice Orange": human readable, unique enough on a LAN.
 QString generateAlias();
 

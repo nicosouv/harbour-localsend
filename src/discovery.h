@@ -1,6 +1,8 @@
 #ifndef DISCOVERY_H
 #define DISCOVERY_H
 
+#include <QElapsedTimer>
+#include <QHash>
 #include <QJsonObject>
 #include <QObject>
 #include <QSet>
@@ -125,6 +127,11 @@ private:
     QTimer *m_announceTimer;
     bool m_running;
     QSet<int> m_joinedInterfaces;
+
+    // When each address was last answered, so a forged announcement cannot
+    // make this device reflect traffic at a third party.
+    QHash<QString, qint64> m_lastResponse;
+    QElapsedTimer m_responseClock;
 
     QStringList m_scanQueue;
     int m_scanTotal;

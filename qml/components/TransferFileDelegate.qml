@@ -68,6 +68,7 @@ ListItem {
             Label {
                 width: parent.width - trailing.width - Theme.paddingMedium
                 text: delegate.fileName
+                textFormat: Text.PlainText
                 truncationMode: TruncationMode.Fade
                 font.pixelSize: Theme.fontSizeSmall
                 color: delegate.skipped ? Theme.secondaryColor : Theme.primaryColor
@@ -115,6 +116,7 @@ ListItem {
         Label {
             width: parent.width
             text: delegate.fileError
+            textFormat: Text.PlainText
             visible: delegate.failed && delegate.fileError.length > 0
             font.pixelSize: Theme.fontSizeTiny
             color: Theme.errorColor

@@ -70,6 +70,7 @@ Page {
                 Label {
                     width: parent.width
                     text: model.fileName
+                    textFormat: Text.PlainText
                     truncationMode: TruncationMode.Fade
                     font.pixelSize: Theme.fontSizeSmall
                     color: fileItem.highlighted ? Theme.highlightColor

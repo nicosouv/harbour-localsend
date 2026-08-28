@@ -126,6 +126,61 @@ PRO_RULES = [
 ]
 
 
+# Codepoints that must never appear literally in a source file.
+HOSTILE_CODEPOINTS = {
+    0x0000: "NUL",
+    0x202A: "LEFT-TO-RIGHT EMBEDDING",
+    0x202B: "RIGHT-TO-LEFT EMBEDDING",
+    0x202C: "POP DIRECTIONAL FORMATTING",
+    0x202D: "LEFT-TO-RIGHT OVERRIDE",
+    0x202E: "RIGHT-TO-LEFT OVERRIDE",
+    0x2066: "LEFT-TO-RIGHT ISOLATE",
+    0x2067: "RIGHT-TO-LEFT ISOLATE",
+    0x2068: "FIRST STRONG ISOLATE",
+    0x2069: "POP DIRECTIONAL ISOLATE",
+    0x200B: "ZERO WIDTH SPACE",
+    0x200D: "ZERO WIDTH JOINER",
+}
+
+
+def check_hostile_characters():
+    """Characters in a source file that make it read as something else.
+
+    The bidi overrides reorder how the rest of a line is drawn, so reviewed
+    code and compiled code can differ - the "Trojan Source" trick. gcc warns
+    about them (-Wbidi-chars) and this refuses them outright.
+
+    NUL is here for a duller reason that cost an hour: CMake's AutoMoc reads a
+    file as a C string and stops at the first NUL, so a test file containing
+    one was reported as "does not include tst_protocol.moc" while the include
+    sat plainly at the bottom of it.
+
+    Testing these characters is legitimate; writing them literally is not.
+    Build them with QChar(0x202E) instead.
+    """
+    findings = []
+    roots = [SRC_DIR, QML_DIR, ROOT / "tests", ROOT / "scripts"]
+
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*")):
+            if not path.is_file() or path.suffix not in (
+                    ".cpp", ".h", ".qml", ".js", ".py"):
+                continue
+            if path.name == "check_qt56.py":
+                continue   # this file names them on purpose
+
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for number, line in enumerate(text.splitlines(), start=1):
+                for character in line:
+                    name = HOSTILE_CODEPOINTS.get(ord(character))
+                    if name:
+                        findings.append((path, number, name))
+                        break
+    return findings
+
+
 def check_project_files():
     """link_pkgconfig in the .pro silently unlinks sailfishapp.
 
@@ -154,6 +209,12 @@ def main():
         print(f"{path.relative_to(ROOT)}:{number}: {since}")
         print(f"    {snippet}")
         print(f"    use {instead}")
+        problems += 1
+
+    for path, number, name in check_hostile_characters():
+        print(f"{path.relative_to(ROOT)}:{number}: literal {name} in source")
+        print(f"    {check_hostile_characters.__doc__.strip().splitlines()[0]}")
+        print("    build it in code: QChar(0x202E)")
         problems += 1
 
     for path in sorted(SRC_DIR.rglob("*.cpp")) + sorted(SRC_DIR.rglob("*.h")):

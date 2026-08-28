@@ -32,6 +32,11 @@ const int ScanWindow = 24;
 const int ScanTimeoutMs = 1500;
 const int RegisterTimeoutMs = 3000;
 
+// Real devices announce every twenty seconds, so half of that leaves normal
+// discovery untouched while capping what a flood can make us send.
+const qint64 ResponseCooldownMs = 10 * 1000;
+const int MaxTrackedResponders = 256;
+
 } // namespace
 
 Discovery::Discovery(AppSettings *settings, DeviceModel *devices,
@@ -50,6 +55,7 @@ Discovery::Discovery(AppSettings *settings, DeviceModel *devices,
     , m_manualPending(0)
     , m_manualFound(false)
 {
+    m_responseClock.start();
     m_announceTimer->setInterval(AnnounceIntervalMs);
     connect(m_announceTimer, &QTimer::timeout, this, &Discovery::announce);
     connect(m_devices, &DeviceModel::deviceAppeared,
@@ -460,6 +466,34 @@ void Discovery::handlePayload(const QJsonObject &payload, const QString &address
 
 void Discovery::respondTo(const DeviceInfo &peer)
 {
+    // An announcement is an unauthenticated UDP datagram, and its source
+    // address is whatever the sender wrote there. Answering every one of them
+    // turns this device into a reflector: forge a thousand announcements
+    // carrying somebody else's address and we send that somebody a thousand
+    // HTTP requests on the attacker's behalf, from an address they never
+    // touched.
+    //
+    // A cooldown per address is enough to make that pointless while leaving
+    // ordinary discovery - one announcement every twenty seconds from each
+    // real device - completely unaffected.
+    const qint64 now = m_responseClock.elapsed();
+
+    const QHash<QString, qint64>::const_iterator seen =
+            m_lastResponse.constFind(peer.address);
+    if (seen != m_lastResponse.constEnd()
+            && now - seen.value() < ResponseCooldownMs) {
+        return;
+    }
+
+    if (m_lastResponse.size() >= MaxTrackedResponders) {
+        // Being flooded from many addresses at once. Forgetting the whole
+        // table is the cheap way out: the cooldown restarts for everyone,
+        // which costs one extra reply per real device and refuses to let the
+        // table itself become the memory leak.
+        m_lastResponse.clear();
+    }
+    m_lastResponse.insert(peer.address, now);
+
     if (m_socket) {
         // Unicast, straight back to the announcer's discovery port. announce
         // is false so this cannot start a reply loop.

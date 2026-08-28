@@ -30,6 +30,49 @@ bool isKnownDeviceType(const QString &type)
         || type == QLatin1String("server");
 }
 
+QString sanitizeText(const QString &text, int maxLength)
+{
+    QString clean;
+    clean.reserve(text.length());
+
+    for (int i = 0; i < text.length() && clean.length() < maxLength; ++i) {
+        const QChar character = text.at(i);
+        const ushort code = character.unicode();
+
+        // C0 and C1 control ranges, and DEL.
+        if (code < 0x20 || code == 0x7F || (code >= 0x80 && code <= 0x9F))
+            continue;
+
+        // Bidirectional overrides and isolates: LRE, RLE, PDF, LRO, RLO and
+        // the U+2066..U+2069 family. Nothing legitimate names a device or a
+        // file with these, and they are the whole mechanism behind an
+        // extension that displays backwards.
+        if (code >= 0x202A && code <= 0x202E)
+            continue;
+        if (code >= 0x2066 && code <= 0x2069)
+            continue;
+
+        // Zero-width joiners and the byte-order mark, which render as nothing
+        // and let two different names look identical.
+        if (code == 0x200B || code == 0x200C || code == 0x200D || code == 0xFEFF)
+            continue;
+
+        // Angle brackets, because of how Qt decides what a string is. A Text
+        // element defaults to AutoText: it sniffs the string, and one that
+        // looks like markup is rendered as rich text - which draws tags and
+        // will fetch an <img src="http://..."> from the network. An alias is
+        // put on screen by several components whose internals are not ours to
+        // configure, PageHeader among them, so the only place this can be
+        // stopped for all of them is here, on the way in.
+        if (code == '<' || code == '>')
+            continue;
+
+        clean.append(character);
+    }
+
+    return clean.trimmed();
+}
+
 QString generateAlias()
 {
     // Deliberately the same shape as LocalSend's own generator, so a Sailfish

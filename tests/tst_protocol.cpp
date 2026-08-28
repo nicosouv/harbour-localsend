@@ -21,6 +21,8 @@ private slots:
     void buildsTheApiBase();
     void fingerprintIsUniqueAndHex();
     void aliasLooksLikeALocalSendAlias();
+    void stripsTextThatCanLieAboutItself();
+    void sanitisesEveryStringFromAPeer();
 };
 
 void TestProtocol::parsesAFullAnnouncement()
@@ -158,6 +160,83 @@ void TestProtocol::aliasLooksLikeALocalSendAlias()
     QVERIFY(Protocol::isKnownDeviceType(QStringLiteral("mobile")));
     QVERIFY(Protocol::isKnownDeviceType(QStringLiteral("headless")));
     QVERIFY(!Protocol::isKnownDeviceType(QStringLiteral("toaster")));
+}
+
+void TestProtocol::stripsTextThatCanLieAboutItself()
+{
+    // The right-to-left override reverses how everything after it is drawn.
+    // It is the whole mechanism behind a file that reads "holiday.jpg" on the
+    // accept page and is a shell script on disk.
+    //
+    // Built by codepoint rather than pasted in: a test file carrying a live
+    // override would misrender itself for whoever reads it, which is the very
+    // thing being tested, and the compiler warns about it.
+    const QString spoofed =
+        QStringLiteral("holiday") + QChar(0x202E) + QStringLiteral("gpj.sh");
+    const QString cleaned = Protocol::sanitizeText(spoofed, 200);
+    QVERIFY(!cleaned.contains(QChar(0x202E)));
+    QCOMPARE(cleaned, QStringLiteral("holidaygpj.sh"));
+
+    // Angle brackets, because Qt's AutoText sniffs a string that looks like
+    // markup and renders it as rich text - which draws tags and fetches a
+    // remote <img src>. Several of the components that display an alias are
+    // Silica's own and cannot be told otherwise, so it is stopped here.
+    QCOMPARE(Protocol::sanitizeText(
+                 QStringLiteral("<img src=\"http://x/y\">"), 200),
+             QStringLiteral("img src=\"http://x/y\""));
+
+    // Controls, which can blank a line or overwrite what came before it.
+    QCOMPARE(Protocol::sanitizeText(QStringLiteral("a\r\nb\tc"), 200),
+             QStringLiteral("abc"));
+
+    // Zero-width characters, which make two different names look identical.
+    QCOMPARE(Protocol::sanitizeText(
+                 QStringLiteral("Mac") + QChar(0x200B) + QStringLiteral("Book"), 200),
+             QStringLiteral("MacBook"));
+
+    // A label is a label. A megabyte of one is not naming anything.
+    QCOMPARE(Protocol::sanitizeText(QString(5000, QLatin1Char('x')), 64).length(), 64);
+
+    // And ordinary names, including non-Latin ones, survive untouched.
+    QCOMPARE(Protocol::sanitizeText(QStringLiteral("Nico's Xperia 10 III"), 200),
+             QStringLiteral("Nico's Xperia 10 III"));
+    QCOMPARE(Protocol::sanitizeText(QStringLiteral("Téléphone de Zoé"), 200),
+             QStringLiteral("Téléphone de Zoé"));
+    QCOMPARE(Protocol::sanitizeText(QStringLiteral("スマホ"), 200),
+             QStringLiteral("スマホ"));
+}
+
+void TestProtocol::sanitisesEveryStringFromAPeer()
+{
+    // Nothing a peer sends reaches the screen unfiltered, so this checks the
+    // parser rather than each display site: there are more of the latter than
+    // anybody will remember to annotate.
+    QJsonObject payload;
+    payload.insert(QStringLiteral("fingerprint"), QStringLiteral("abc123"));
+    payload.insert(QStringLiteral("alias"),
+                   QStringLiteral("<b>Bank</b>") + QChar(0x202E)
+                       + QStringLiteral("evil"));
+    payload.insert(QStringLiteral("deviceModel"),
+                   QStringLiteral("Mac") + QChar(0) + QStringLiteral("Book"));
+    payload.insert(QStringLiteral("deviceType"), QStringLiteral("mo<bile"));
+
+    const DeviceInfo device = DeviceInfo::fromPayload(payload);
+
+    QVERIFY(!device.alias.contains(QLatin1Char('<')));
+    QVERIFY(!device.alias.contains(QLatin1Char('>')));
+    QVERIFY(!device.alias.contains(QChar(0x202E)));
+    QVERIFY(!device.deviceModel.contains(QChar(0)));
+    QVERIFY(!device.deviceType.contains(QLatin1Char('<')));
+
+    // An alias of nothing but strippable characters must still leave a device
+    // that can be shown and addressed.
+    QJsonObject blank;
+    blank.insert(QStringLiteral("fingerprint"), QStringLiteral("def456"));
+    blank.insert(QStringLiteral("alias"),
+                 QString(QChar(0x202E)) + QChar(0x200B) + QStringLiteral("<>"));
+    const DeviceInfo empty = DeviceInfo::fromPayload(blank);
+    QVERIFY(empty.isValid());
+    QVERIFY(!empty.alias.isEmpty());
 }
 
 QTEST_MAIN(TestProtocol)

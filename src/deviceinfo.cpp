@@ -59,12 +59,21 @@ QJsonObject DeviceInfo::toInfoResponse() const
 
 DeviceInfo DeviceInfo::fromPayload(const QJsonObject &object)
 {
+    // Every string here is chosen by whoever sent the payload and ends up on
+    // screen, so none of it arrives unfiltered. The caps are generous next to
+    // any real device name and far below what it would take to bloat the
+    // device list.
     DeviceInfo device;
-    device.alias = object.value(QStringLiteral("alias")).toString();
-    device.version = object.value(QStringLiteral("version")).toString();
-    device.deviceModel = object.value(QStringLiteral("deviceModel")).toString();
-    device.deviceType = object.value(QStringLiteral("deviceType")).toString();
-    device.fingerprint = object.value(QStringLiteral("fingerprint")).toString();
+    device.alias = Protocol::sanitizeText(
+        object.value(QStringLiteral("alias")).toString(), 64);
+    device.version = Protocol::sanitizeText(
+        object.value(QStringLiteral("version")).toString(), 16);
+    device.deviceModel = Protocol::sanitizeText(
+        object.value(QStringLiteral("deviceModel")).toString(), 64);
+    device.deviceType = Protocol::sanitizeText(
+        object.value(QStringLiteral("deviceType")).toString(), 16);
+    device.fingerprint = Protocol::sanitizeText(
+        object.value(QStringLiteral("fingerprint")).toString(), 128);
     device.download = object.value(QStringLiteral("download")).toBool(false);
 
     const QJsonValue portValue = object.value(QStringLiteral("port"));

@@ -82,6 +82,7 @@ CoverBackground {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             text: transfer.peerAlias
+            textFormat: Text.PlainText
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.primaryColor
             truncationMode: TruncationMode.Fade
@@ -137,6 +138,7 @@ CoverBackground {
             color: Theme.secondaryColor
             truncationMode: TruncationMode.Fade
             text: transfer.peerAlias
+            textFormat: Text.PlainText
         }
     }
 

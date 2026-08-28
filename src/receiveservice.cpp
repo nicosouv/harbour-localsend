@@ -511,6 +511,13 @@ void ReceiveService::handleUploadFinished(HttpConnection *connection)
         connection->respond(500);
     } else {
         QFile::remove(upload.finalPath);
+        // Never executable, whatever it is called. Nothing here would set the
+        // bit, but a received file is the one thing on this device chosen
+        // entirely by somebody else, so it is worth being explicit rather
+        // than relying on the umask staying what it is today.
+        QFile::setPermissions(upload.partPath,
+                              QFile::ReadOwner | QFile::WriteOwner
+                              | QFile::ReadGroup | QFile::ReadOther);
         if (QFile::rename(upload.partPath, upload.finalPath)) {
             m_transfer->setFileLocalPath(upload.row, upload.finalPath);
             m_transfer->setFileStatus(upload.row, TransferModel::FileDone);
@@ -746,7 +753,11 @@ QString ReceiveService::sanitizeFileName(const QString &name)
     // A peer chooses this string. "../../.ssh/authorized_keys" is a perfectly
     // well-formed value for it, so the directory part goes first and the
     // result is checked for the traversal names that survive that.
-    QString clean = QFileInfo(name).fileName();
+    // Controls, bidi overrides and angle brackets go first. A name carrying
+    // U+202E draws on screen as one extension while being another on disk,
+    // which is how an accept prompt is made to say "holiday.jpg" for a shell
+    // script; the brackets are about the same name being rendered as markup.
+    QString clean = QFileInfo(Protocol::sanitizeText(name, 200)).fileName();
     clean.replace(QLatin1Char('\\'), QLatin1Char('_'));
     clean.replace(QLatin1Char('/'), QLatin1Char('_'));
 

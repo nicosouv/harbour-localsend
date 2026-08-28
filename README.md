@@ -104,6 +104,15 @@ What that does and does not buy you:
 - Encryption can be turned off in Settings for interoperability. The main page
   says **Not encrypted** in red the whole time it is off.
 
+There is deliberately **no allow-list of file extensions**. On Sailfish an
+extension does not make a file runnable — nothing received is executable, and
+files are opened by a viewer chosen from their type. A list would block the
+awkward case (an `.apk` you did not want, which the accept prompt already
+showed you) while breaking the ordinary one: archives, databases, files with
+no extension at all. What it would not stop is the real risk, a malicious
+`.jpg` aimed at an image decoder, since `.jpg` is on every such list. The
+defences that do apply are below.
+
 Other hardening, all of it covered by tests:
 
 - **File names from a peer are attacker-controlled.** Any directory component
@@ -116,9 +125,24 @@ Other hardening, all of it covered by tests:
   address gets exponential backoff and a `429` with `Retry-After`.
 - **Session tokens come from the CSPRNG**, 192 bits each, and are compared in
   constant time. They are bearer capabilities, not identifiers.
+- **Names from a peer cannot lie about themselves.** Control characters,
+  zero-width characters and the Unicode bidirectional overrides are stripped
+  on the way in — the last of these is what makes a shell script display as
+  `holiday.jpg`. Angle brackets go too, because Qt renders a string that looks
+  like markup as rich text, and a device alias of `<img src="http://…">`
+  would otherwise make the phone fetch a URL just by appearing in the list.
+- **An upload cannot exceed the size it declared.** Permission is granted
+  against the number shown on the accept page; the bytes arrive in a separate
+  request, and nothing else made the two agree.
+- **Received files are never executable**, whatever they are called.
+- **Discovery cannot be used as a reflector.** Announcements are
+  unauthenticated UDP with a forgeable source, so answering every one would
+  let an attacker aim this device's replies at a third party. Responses are
+  rate-limited per address.
 - **Limits that stop a peer exhausting the device**: concurrent connections,
-  header size, buffered body size, declared file count, and idle timeouts on
-  both the socket and the session.
+  header size, buffered body size, declared file count, device-list size, and
+  idle timeouts on the socket, the TLS handshake, the session, and the drain
+  after a refused request.
 
 The PIN and the accept prompt protect against *unwanted* transfers; the
 encryption protects against *watched* ones. They are different problems.
