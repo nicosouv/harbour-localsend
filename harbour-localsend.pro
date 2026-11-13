@@ -116,4 +116,6 @@ TRANSLATIONS += translations/harbour-localsend-en.ts \
                 translations/harbour-localsend-es.ts \
                 translations/harbour-localsend-fi.ts \
                 translations/harbour-localsend-it.ts \
-                translations/harbour-localsend-nb_NO.ts
+                translations/harbour-localsend-nb_NO.ts\
+                translations/harbour-localsend-zh_CN.ts
+                

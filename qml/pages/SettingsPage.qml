@@ -220,6 +220,7 @@ Page {
                     MenuItem { text: "Suomi";        onClicked: appSettings.language = "fi" }
                     MenuItem { text: "Italiano";     onClicked: appSettings.language = "it" }
                     MenuItem { text: "Norsk bokmål"; onClicked: appSettings.language = "nb_NO" }
+                    MenuItem { text: "简体中文";       onClicked: appSettings.language = "zh_CN" }
                 }
             }
 
