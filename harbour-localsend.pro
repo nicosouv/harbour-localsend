@@ -37,7 +37,7 @@ packagesExist(sailfishsecrets) {
 
 # Version is passed by the spec file (%qmake5 VERSION=%{version})
 isEmpty(VERSION) {
-    VERSION = 0.2.1
+    VERSION = 0.2.2
 }
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 

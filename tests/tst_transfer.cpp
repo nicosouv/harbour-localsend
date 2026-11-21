@@ -12,6 +12,7 @@
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTcpServer>
+#include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -60,6 +61,7 @@ private slots:
     void refusesToSendToABlockedDevice();
     void aSweepHoldsNoMoreSocketsThanItsWindow();
     void aSweepProbesAnAddressThatAnswers();
+    void aQuietDeviceIsAskedBeforeItAgesOut();
 
 public:
     // Public so the digest helper below can hand one back.
@@ -873,6 +875,80 @@ void TestTransfer::aSweepProbesAnAddressThatAnswers()
     QVERIFY(m_discovery->isScanning());
     QTRY_VERIFY_WITH_TIMEOUT(!m_discovery->isScanning(), 10000);
     QVERIFY(scanning.count() >= 2);
+}
+
+void TestTransfer::aQuietDeviceIsAskedBeforeItAgesOut()
+{
+    // LocalSend 1.18.2 on macOS stops answering announcements from a phone
+    // that just sent it files, while its server stays up. Asked directly, it
+    // still answers, and that answer has to keep it on the list. A device
+    // that does not answer must not be kept by the asking alone.
+    QTcpServer peer;
+    QVERIFY(peer.listen(QHostAddress::LocalHost, 0));
+
+    QStringList requests;
+    connect(&peer, &QTcpServer::newConnection, this, [&peer, &requests]() {
+        QTcpSocket *socket = peer.nextPendingConnection();
+        QByteArray *buffer = new QByteArray;
+        connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+        connect(socket, &QObject::destroyed, [buffer]() { delete buffer; });
+        connect(socket, &QTcpSocket::readyRead, socket, [socket, buffer, &requests]() {
+            buffer->append(socket->readAll());
+            const int end = buffer->indexOf("\r\n\r\n");
+            if (end < 0)
+                return;
+            int length = 0;
+            const QList<QByteArray> lines = buffer->left(end).split('\n');
+            for (int i = 0; i < lines.count(); ++i) {
+                if (lines.at(i).toLower().startsWith("content-length:"))
+                    length = lines.at(i).mid(15).trimmed().toInt();
+            }
+            if (buffer->size() < end + 4 + length)
+                return;
+
+            requests << QString::fromLatin1(lines.first().trimmed());
+            const QByteArray body = QJsonDocument(QJsonObject{
+                {QStringLiteral("alias"), QStringLiteral("Quiet peer")},
+                {QStringLiteral("version"), QStringLiteral("2.1")},
+                {QStringLiteral("deviceModel"), QStringLiteral("Mac")},
+                {QStringLiteral("deviceType"), QStringLiteral("desktop")},
+                {QStringLiteral("fingerprint"), QStringLiteral("QUIETPEER")},
+                {QStringLiteral("download"), false}
+            }).toJson(QJsonDocument::Compact);
+            socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                          "Connection: close\r\nContent-Length: "
+                          + QByteArray::number(body.size()) + "\r\n\r\n" + body);
+            socket->disconnectFromHost();
+        });
+    });
+
+    DeviceInfo quiet;
+    quiet.fingerprint = QStringLiteral("QUIETPEER");
+    quiet.alias = QStringLiteral("Quiet peer");
+    quiet.address = QStringLiteral("127.0.0.1");
+    quiet.port = peer.serverPort();
+    quiet.protocol = QStringLiteral("http");
+    m_devices->upsert(quiet);
+
+    DeviceInfo gone = quiet;
+    gone.fingerprint = QStringLiteral("GONEPEER");
+    gone.alias = QStringLiteral("Gone peer");
+    gone.port = freePort();
+    m_devices->upsert(gone);
+
+    const QDateTime quietSeen = m_devices->byFingerprint(QStringLiteral("QUIETPEER")).lastSeen;
+    const QDateTime goneSeen = m_devices->byFingerprint(QStringLiteral("GONEPEER")).lastSeen;
+    QTest::qWait(20);
+
+    m_discovery->refreshQuietDevices(-1);
+
+    QTRY_COMPARE_WITH_TIMEOUT(requests.count(), 1, 5000);
+    QCOMPARE(requests.first(), QStringLiteral("POST /api/localsend/v2/register HTTP/1.1"));
+    QTRY_VERIFY_WITH_TIMEOUT(
+        m_devices->byFingerprint(QStringLiteral("QUIETPEER")).lastSeen > quietSeen, 5000);
+
+    QTest::qWait(200);
+    QCOMPARE(m_devices->byFingerprint(QStringLiteral("GONEPEER")).lastSeen, goneSeen);
 }
 
 QTEST_MAIN(TestTransfer)

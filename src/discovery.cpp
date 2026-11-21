@@ -27,6 +27,10 @@ const int AnnounceIntervalMs = 20 * 1000;
 // Two missed rounds plus slack. Anything quieter than this is gone.
 const int DeviceMaxAgeSeconds = 70;
 
+// One round plus the second or so an answer takes. A device that answers
+// announcements is never past it, so it is never asked twice.
+const int QuietAfterSeconds = 30;
+
 // The subnet sweep, sized for a phone: enough sockets in flight to finish a
 // /24 in well under a minute, few enough not to swamp the Wi-Fi chip. The
 // window is also the most descriptors a sweep ever holds, which matters
@@ -214,10 +218,47 @@ void Discovery::announce()
     // that was about to refresh it.
     refreshManualDevices();
     m_devices->prune(DeviceMaxAgeSeconds);
+    // After it: a device past its age is gone, and asking it could not have
+    // saved it on this round anyway.
+    refreshQuietDevices(QuietAfterSeconds);
+}
+
+void Discovery::refreshQuietDevices(int quietSeconds)
+{
+    // A device that stops answering announcements is not necessarily gone.
+    // LocalSend 1.18.2 on macOS stops answering one sender after receiving
+    // files from it, while its server keeps taking requests: the Mac dropped
+    // off the list a minute after every transfer. Asking it directly keeps
+    // it listed for exactly as long as it is reachable.
+    //
+    // A device that has really left costs a failed request or two before the
+    // prune takes it, which QNetworkAccessManager can afford; the sweep, with
+    // hundreds of dead addresses, could not.
+    const QStringList manual = m_settings->manualDevices();
+    const QList<DeviceInfo> quiet = m_devices->quietSince(quietSeconds);
+
+    for (int i = 0; i < quiet.count(); ++i) {
+        const DeviceInfo &device = quiet.at(i);
+        const int port = device.port > 0 ? device.port : Protocol::DefaultPort;
+
+        // Re-registered on every round already.
+        if (manual.contains(device.address + QLatin1Char(':') + QString::number(port)))
+            continue;
+
+        // Pinned to the fingerprint we know it by: an answer from whatever
+        // else now holds that address must not keep this device alive.
+        QNetworkReply *reply = probe(device.address, port, device.protocol,
+                                     device.fingerprint);
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            acceptRegisterReply(reply, 0);
+        });
+        QTimer::singleShot(RegisterTimeoutMs, reply, SLOT(abort()));
+    }
 }
 
 QNetworkReply *Discovery::probe(const QString &host, int port,
-                                const QString &scheme)
+                                const QString &scheme, const QString &fingerprint)
 {
     QUrl url;
     url.setScheme(scheme);
@@ -240,7 +281,9 @@ QNetworkReply *Discovery::probe(const QString &host, int port,
         m_settings->self().toRegisterBody()).toJson(QJsonDocument::Compact);
 
     QNetworkReply *reply = m_network->post(request, body);
-    if (secure) {
+    if (secure && !fingerprint.isEmpty()) {
+        TlsClient::pin(reply, fingerprint);
+    } else if (secure) {
         // No fingerprint to pin against: we have not met this device. The
         // certificate is accepted so the introduction can happen, and
         // acceptRegisterReply() then refuses to believe the fingerprint it

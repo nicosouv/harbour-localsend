@@ -259,3 +259,16 @@ void DeviceModel::prune(int maxAgeSeconds)
     if (removed)
         emit countChanged();
 }
+
+QList<DeviceInfo> DeviceModel::quietSince(int seconds) const
+{
+    const QDateTime now = QDateTime::currentDateTime();
+    QList<DeviceInfo> quiet;
+
+    for (int i = 0; i < m_devices.count(); ++i) {
+        const QDateTime seen = m_devices.at(i).lastSeen;
+        if (!seen.isValid() || seen.secsTo(now) > seconds)
+            quiet.append(m_devices.at(i));
+    }
+    return quiet;
+}

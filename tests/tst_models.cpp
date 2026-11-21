@@ -24,6 +24,7 @@ private slots:
     void devicesAreKeyedByFingerprint();
     void devicesStaySortedByAlias();
     void devicesAgeOut();
+    void devicesGoQuietBeforeTheyAgeOut();
 
     void selectionRejectsDuplicatesAndMissingFiles();
 
@@ -241,6 +242,26 @@ void TestModels::devicesAgeOut()
     // Anything older than zero seconds is everything.
     devices.prune(-1);
     QCOMPARE(devices.count(), 0);
+}
+
+void TestModels::devicesGoQuietBeforeTheyAgeOut()
+{
+    DeviceModel devices;
+
+    DeviceInfo device;
+    device.fingerprint = QStringLiteral("quiet");
+    device.alias = QStringLiteral("Quiet");
+    device.address = QStringLiteral("10.0.0.2");
+    devices.upsert(device);
+
+    QVERIFY(devices.quietSince(60).isEmpty());
+
+    const QList<DeviceInfo> quiet = devices.quietSince(-1);
+    QCOMPARE(quiet.count(), 1);
+    QCOMPARE(quiet.first().fingerprint, QStringLiteral("quiet"));
+
+    // Being quiet is not being gone: the list is left alone.
+    QCOMPARE(devices.count(), 1);
 }
 
 void TestModels::selectionRejectsDuplicatesAndMissingFiles()

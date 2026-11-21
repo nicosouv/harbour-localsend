@@ -69,6 +69,10 @@ public:
     // timer by the discovery layer after each announcement round.
     void prune(int maxAgeSeconds);
 
+    // The devices not heard from for longer than `seconds`: the ones the
+    // discovery layer asks directly before they age out.
+    QList<DeviceInfo> quietSince(int seconds) const;
+
 signals:
     void countChanged();
     void deviceAppeared(const QString &alias);

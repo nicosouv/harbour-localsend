@@ -49,8 +49,11 @@ Eight objects are exposed to QML as context properties by
 
 3. **Discovery** (`discovery.*`) — UDP multicast on 224.0.0.167:53317, plus a
    manual `/24` sweep for networks that swallow multicast. Announces every 20
-   seconds; peers answer, which is what keeps their entries fresh. The sweep
-   covers broadcast-capable interfaces only (never mobile data) and sends a
+   seconds; peers answer, which is what keeps their entries fresh. A device
+   quiet for 30 s gets a direct `/register`, pinned to its fingerprint,
+   before the 70 s prune: LocalSend 1.18.2 on macOS stops answering a sender's
+   announcements after receiving files from it. The sweep covers
+   broadcast-capable interfaces only (never mobile data) and sends a
    `/register` only to addresses that accepted a bare TCP connection.
 
 4. **HttpServer / HttpConnection** (`httpserver.*`) — the whole of our HTTP.

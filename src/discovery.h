@@ -68,6 +68,11 @@ public:
     // the loopback, where every connection is refused at full speed.
     void scanHosts(const QStringList &hosts);
 
+    // Registers directly with every listed device not heard from for longer
+    // than `quietSeconds`, at the address it was last seen on. Each
+    // announcement round calls it; the tests call it with -1.
+    void refreshQuietDevices(int quietSeconds);
+
     // Adds a device by address, for the case neither of the above can reach:
     // a different subnet, a VPN, a guest network with client isolation. The
     // sweep only covers our own /24, and multicast does not leave the
@@ -120,8 +125,11 @@ private:
     QStringList lanAddresses() const;
 
     // Posts /register to one endpoint on one transport. The reply is left
-    // unconnected for the caller to wire to whichever handler it needs.
-    QNetworkReply *probe(const QString &host, int port, const QString &scheme);
+    // unconnected for the caller to wire to whichever handler it needs. With
+    // a fingerprint, an https probe is pinned to it; without one, any
+    // certificate is let through for acceptRegisterReply() to check.
+    QNetworkReply *probe(const QString &host, int port, const QString &scheme,
+                         const QString &fingerprint = QString());
     // Records a peer learned from a /register reply, refusing one whose
     // announced fingerprint is not the hash of the certificate it presented.
     bool acceptRegisterReply(QNetworkReply *reply, QString *alias);
