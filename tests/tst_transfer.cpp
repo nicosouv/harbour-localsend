@@ -1,6 +1,8 @@
 #include <functional>
 
 #include <QCryptographicHash>
+#include <QDir>
+#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -56,6 +58,8 @@ private slots:
     void keepsAFileWhoseDigestMatches();
     void refusesABlockedSenderWithoutAsking();
     void refusesToSendToABlockedDevice();
+    void aSweepHoldsNoMoreSocketsThanItsWindow();
+    void aSweepProbesAnAddressThatAnswers();
 
 public:
     // Public so the digest helper below can hand one back.
@@ -73,6 +77,7 @@ private:
     QString writeFile(const QString &name, const QByteArray &content);
     void restartReceiver();
     static quint16 freePort();
+    static int openDescriptors();
     // forgetAll() deliberately keeps blocks, so emptying the store takes both.
     static void clearKnownDevices(KnownDevices *known);
 
@@ -104,6 +109,13 @@ quint16 TestTransfer::freePort()
     const quint16 port = probe.serverPort();
     probe.close();
     return port;
+}
+
+int TestTransfer::openDescriptors()
+{
+    return QDir(QStringLiteral("/proc/self/fd"))
+            .entryList(QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot)
+            .count();
 }
 
 void TestTransfer::clearKnownDevices(KnownDevices *known)
@@ -808,6 +820,59 @@ void TestTransfer::refusesToSendToABlockedDevice()
     QCOMPARE(m_outgoing->stateName(), QStringLiteral("failed"));
     QVERIFY(!m_sender->isBusy());
     QCOMPARE(arrived.count(), 0);
+}
+
+void TestTransfer::aSweepHoldsNoMoreSocketsThanItsWindow()
+{
+    // The sweep used to go through QNetworkAccessManager, which keeps the
+    // socket of every request it gives up on. A /24 left 500 descriptors
+    // open, Wi-Fi plus mobile data went past the 1024 a process gets, and
+    // the app crashed when the graphics driver could not get one for a
+    // frame. Every address here refuses at once, which is that path at full
+    // speed.
+    if (!QDir(QStringLiteral("/proc/self/fd")).exists())
+        QSKIP("needs /proc to count descriptors");
+
+    m_receiver->stopListening();
+
+    QStringList hosts;
+    for (int host = 2; host <= 254; ++host)
+        hosts << QStringLiteral("127.0.0.%1").arg(host);
+
+    const int before = openDescriptors();
+    int peak = before;
+
+    m_discovery->scanHosts(hosts);
+    QVERIFY(m_discovery->isScanning());
+
+    QElapsedTimer clock;
+    clock.start();
+    while (m_discovery->isScanning() && clock.elapsed() < 20000) {
+        peak = qMax(peak, openDescriptors());
+        QTest::qWait(5);
+    }
+    QVERIFY(!m_discovery->isScanning());
+
+    // Deferred deletions and the like settle on the next pass.
+    QTest::qWait(50);
+
+    QVERIFY2(peak - before <= 32,
+             qPrintable(QStringLiteral("peak %1 above %2").arg(peak).arg(before)));
+    QVERIFY2(openDescriptors() - before <= 2,
+             qPrintable(QStringLiteral("%1 left open").arg(openDescriptors() - before)));
+}
+
+void TestTransfer::aSweepProbesAnAddressThatAnswers()
+{
+    // The other branch: the receiver is listening, so the check connects and
+    // a /register probe follows. Its reply has to settle the sweep, or it
+    // would read as still searching forever.
+    QSignalSpy scanning(m_discovery, SIGNAL(scanningChanged()));
+    m_discovery->scanHosts(QStringList() << QStringLiteral("127.0.0.1"));
+
+    QVERIFY(m_discovery->isScanning());
+    QTRY_VERIFY_WITH_TIMEOUT(!m_discovery->isScanning(), 10000);
+    QVERIFY(scanning.count() >= 2);
 }
 
 QTEST_MAIN(TestTransfer)

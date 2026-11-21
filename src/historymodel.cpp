@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -62,6 +63,10 @@ void HistoryModel::load()
         for (int n = 0; n < names.count(); ++n)
             record.fileNames.append(names.at(n).toString());
 
+        const QJsonArray paths = object.value(QStringLiteral("filePaths")).toArray();
+        for (int n = 0; n < paths.count(); ++n)
+            record.filePaths.append(paths.at(n).toString());
+
         m_records.append(record);
     }
 }
@@ -87,6 +92,13 @@ void HistoryModel::save()
         for (int n = 0; n < record.fileNames.count(); ++n)
             names.append(record.fileNames.at(n));
         object.insert(QStringLiteral("fileNames"), names);
+
+        if (!record.filePaths.isEmpty()) {
+            QJsonArray paths;
+            for (int n = 0; n < record.filePaths.count(); ++n)
+                paths.append(record.filePaths.at(n));
+            object.insert(QStringLiteral("filePaths"), paths);
+        }
 
         array.append(object);
     }
@@ -138,6 +150,40 @@ QHash<int, QByteArray> HistoryModel::roleNames() const
     roles[StatusRole] = "status";
     roles[DestinationRole] = "destination";
     return roles;
+}
+
+QVariantList HistoryModel::filesAt(int row) const
+{
+    if (row < 0 || row >= m_records.count())
+        return QVariantList();
+
+    const Record &record = m_records.at(row);
+    const bool received = record.direction == QLatin1String("receive");
+
+    QVariantList files;
+    for (int i = 0; i < record.fileNames.count(); ++i) {
+        QString path = i < record.filePaths.count() ? record.filePaths.at(i) : QString();
+
+        // A record from before paths were kept: the folder and the name the
+        // sender gave, which is right unless a clash renamed the file. The
+        // name is the peer's, so only its last component is used.
+        if (path.isEmpty() && received && !record.destination.isEmpty()) {
+            path = QDir(record.destination).filePath(
+                QFileInfo(record.fileNames.at(i)).fileName());
+        }
+
+        // Checked on every call rather than stored: the question is whether
+        // the file is there now, and the gallery or a file manager may have
+        // moved it since.
+        QVariantMap file;
+        file.insert(QStringLiteral("name"), path.isEmpty() ? record.fileNames.at(i)
+                                                           : QFileInfo(path).fileName());
+        file.insert(QStringLiteral("path"), path);
+        file.insert(QStringLiteral("available"),
+                    received && !path.isEmpty() && QFileInfo(path).isFile());
+        files.append(file);
+    }
+    return files;
 }
 
 int HistoryModel::count() const

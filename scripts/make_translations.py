@@ -58,15 +58,6 @@ TRANSLATIONS = {
         "en": "Stop", "fr": "Arrêter", "de": "Anhalten", "es": "Detener",
         "fi": "Pysäytä", "it": "Ferma", "nb_NO": "Stopp",
     },
-    "Open": {
-        "en": "Open", "fr": "Ouvrir", "de": "Öffnen", "es": "Abrir",
-        "fi": "Avaa", "it": "Apri", "nb_NO": "Åpne",
-    },
-    "Open folder": {
-        "en": "Open folder", "fr": "Ouvrir le dossier", "de": "Ordner öffnen",
-        "es": "Abrir la carpeta", "fi": "Avaa kansio", "it": "Apri la cartella",
-        "nb_NO": "Åpne mappen",
-    },
     "Remove": {
         "en": "Remove", "fr": "Retirer", "de": "Entfernen", "es": "Quitar",
         "fi": "Poista", "it": "Rimuovi", "nb_NO": "Fjern",
@@ -517,6 +508,12 @@ TRANSLATIONS = {
         "en": "+%1 more", "fr": "+%1 autre(s)", "de": "+%1 weitere",
         "es": "+%1 más", "fi": "+%1 muuta", "it": "+%1 altri",
         "nb_NO": "+%1 til",
+    },
+    "Moved or deleted": {
+        "en": "Moved or deleted", "fr": "Déplacé ou supprimé",
+        "de": "Verschoben oder gelöscht", "es": "Movido o eliminado",
+        "fi": "Siirretty tai poistettu", "it": "Spostato o eliminato",
+        "nb_NO": "Flyttet eller slettet",
     },
     "Nothing yet": {
         "en": "Nothing yet", "fr": "Rien pour l'instant", "de": "Noch nichts",

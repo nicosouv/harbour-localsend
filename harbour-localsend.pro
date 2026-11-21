@@ -37,7 +37,7 @@ packagesExist(sailfishsecrets) {
 
 # Version is passed by the spec file (%qmake5 VERSION=%{version})
 isEmpty(VERSION) {
-    VERSION = 0.2.0
+    VERSION = 0.2.1
 }
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 
@@ -87,6 +87,7 @@ DISTFILES += qml/harbour-localsend.qml \
     qml/pages/ReceiveRequestPage.qml \
     qml/pages/SelectionPage.qml \
     qml/pages/HistoryPage.qml \
+    qml/pages/HistoryFilesPage.qml \
     qml/pages/AddDevicePage.qml \
     qml/pages/BlockedDevicesPage.qml \
     qml/pages/SettingsPage.qml \

@@ -166,19 +166,14 @@ Page {
             fileStatus: model.fileStatus
             fileError: model.fileError
 
-            // Only worth offering once there is something on disk to open.
-            menu: (model.fileStatus === "done" && model.localPath.length > 0
-                   && !page.sending) ? openMenuComponent : null
-
-            Component {
-                id: openMenuComponent
-
-                ContextMenu {
-                    MenuItem {
-                        text: qsTr("Open")
-                        onClicked: Qt.openUrlExternally(Formatting.fileUrl(model.localPath))
-                    }
-                }
+            // Once there is something on disk, one tap opens it, as a file
+            // does anywhere else on the phone. A received text is most often
+            // read straight away.
+            openable: model.fileStatus === "done" && model.localPath.length > 0
+                      && !page.sending
+            onClicked: {
+                if (openable)
+                    Qt.openUrlExternally(Formatting.fileUrl(model.localPath))
             }
         }
 

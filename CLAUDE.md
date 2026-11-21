@@ -49,7 +49,9 @@ Eight objects are exposed to QML as context properties by
 
 3. **Discovery** (`discovery.*`) — UDP multicast on 224.0.0.167:53317, plus a
    manual `/24` sweep for networks that swallow multicast. Announces every 20
-   seconds; peers answer, which is what keeps their entries fresh.
+   seconds; peers answer, which is what keeps their entries fresh. The sweep
+   covers broadcast-capable interfaces only (never mobile data) and sends a
+   `/register` only to addresses that accepted a bare TCP connection.
 
 4. **HttpServer / HttpConnection** (`httpserver.*`) — the whole of our HTTP.
    Request line, headers, and a body that is either buffered (small JSON) or
@@ -166,6 +168,13 @@ nothing to say. What replaces it:
    (`sender`, `receiver`, `transfer`, `selection`, `discovery`, `deviceModel`,
    `historyModel`, `appSettings`). `scripts/check_qml.py` enforces this after
    `id: sender` shadowed the SendService for a whole page.
+
+9. **Never sweep through QNetworkAccessManager.** It keeps the socket of a
+   failed or aborted request open long after the request is gone. One `/24`
+   left 500 descriptors behind; Wi-Fi plus mobile data passed the 1024 a
+   process gets, and the graphics driver segfaulted when it could not get one
+   for a frame fence. `tst_transfer::aSweepHoldsNoMoreSocketsThanItsWindow`
+   guards it.
 
 ## Constraints
 

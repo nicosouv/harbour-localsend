@@ -5,9 +5,10 @@ import "../components/Formatting.js" as Formatting
 
 // What has been sent and received.
 //
-// Its real job is answering "where did that file go", which is why a received
-// entry carries its folder and offers to open it rather than just naming a
-// count.
+// Its real job is answering "where did that file go", which is why a tap on a
+// received entry opens what it brought rather than just naming a count. Not
+// the folder: Sailfish has no app for a folder unless a file manager was
+// installed by hand, so "Open folder" failed on most phones.
 Page {
     id: page
 
@@ -42,13 +43,31 @@ Page {
 
             readonly property bool received: model.direction === "receive"
             readonly property bool ok: model.status === "finished"
+            readonly property bool openable: received && model.fileCount > 0
+
+            highlighted: (openable && down) || menuOpen
+
+            // One file opens in its app straight away. Several, or one that
+            // is no longer where it landed, get the list, which can say so.
+            onClicked: {
+                if (!openable)
+                    return
+
+                var files = historyModel.filesAt(index)
+                if (files.length === 1 && files[0].available) {
+                    Qt.openUrlExternally(Formatting.fileUrl(files[0].path))
+                    return
+                }
+
+                pageStack.push(Qt.resolvedUrl("HistoryFilesPage.qml"), {
+                    files: files,
+                    peerAlias: model.peerAlias,
+                    destination: model.destination,
+                    timestamp: model.timestamp
+                })
+            }
 
             menu: ContextMenu {
-                MenuItem {
-                    text: qsTr("Open folder")
-                    visible: record.received && model.destination.length > 0
-                    onClicked: Qt.openUrlExternally(Formatting.fileUrl(model.destination))
-                }
                 MenuItem {
                     text: qsTr("Remove")
                     onClicked: record.remorseAction(qsTr("Removing"), function () {

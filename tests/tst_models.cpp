@@ -28,6 +28,8 @@ private slots:
     void selectionRejectsDuplicatesAndMissingFiles();
 
     void historyKeepsNewestFirst();
+    void historyOpensTheFileThatLanded();
+    void historyFindsFilesOfOlderRecords();
 
 private:
     QList<FileEntry> threeFiles() const;
@@ -311,6 +313,93 @@ void TestModels::historyKeepsNewestFirst()
 
     history.clear();
     QCOMPARE(history.count(), 0);
+}
+
+void TestModels::historyOpensTheFileThatLanded()
+{
+    // A clash on arrival renames the file, so the sender's name and the one
+    // on disk differ. The history has to open the one on disk, survive a
+    // restart with it, and say when it has gone.
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    const QString landed = folder.path() + QStringLiteral("/photo (2).jpg");
+    QFile file(landed);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+
+    HistoryModel history;
+    history.clear();
+
+    HistoryModel::Record record;
+    record.id = QStringLiteral("clash");
+    record.direction = QStringLiteral("receive");
+    record.timestamp = QDateTime::currentDateTime();
+    record.status = QStringLiteral("finished");
+    record.destination = folder.path();
+    record.fileNames = QStringList() << QStringLiteral("photo.jpg")
+                                     << QStringLiteral("gone.txt");
+    record.filePaths = QStringList() << landed
+                                     << folder.path() + QStringLiteral("/gone.txt");
+    history.append(record);
+
+    HistoryModel reloaded;
+    const QVariantList files = reloaded.filesAt(0);
+    QCOMPARE(files.count(), 2);
+
+    const QVariantMap first = files.at(0).toMap();
+    QCOMPARE(first.value(QStringLiteral("path")).toString(), landed);
+    QCOMPARE(first.value(QStringLiteral("name")).toString(), QStringLiteral("photo (2).jpg"));
+    QVERIFY(first.value(QStringLiteral("available")).toBool());
+
+    QVERIFY(!files.at(1).toMap().value(QStringLiteral("available")).toBool());
+
+    QVERIFY(reloaded.filesAt(1).isEmpty());
+    history.clear();
+}
+
+void TestModels::historyFindsFilesOfOlderRecords()
+{
+    // Records written before paths were kept only have the folder and the
+    // sender's names. Those still lead to the file - but only to a file in
+    // that folder, whatever directory the name claims.
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    QFile file(folder.path() + QStringLiteral("/note.txt"));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+
+    HistoryModel history;
+    history.clear();
+
+    HistoryModel::Record record;
+    record.id = QStringLiteral("old");
+    record.direction = QStringLiteral("receive");
+    record.timestamp = QDateTime::currentDateTime();
+    record.status = QStringLiteral("finished");
+    record.destination = folder.path();
+    record.fileNames = QStringList() << QStringLiteral("note.txt")
+                                     << QStringLiteral("../../etc/passwd");
+    history.append(record);
+
+    const QVariantList files = history.filesAt(0);
+    QCOMPARE(files.count(), 2);
+    QCOMPARE(files.at(0).toMap().value(QStringLiteral("path")).toString(),
+             folder.path() + QStringLiteral("/note.txt"));
+    QVERIFY(files.at(0).toMap().value(QStringLiteral("available")).toBool());
+
+    const QVariantMap escaped = files.at(1).toMap();
+    QCOMPARE(escaped.value(QStringLiteral("path")).toString(),
+             folder.path() + QStringLiteral("/passwd"));
+    QVERIFY(!escaped.value(QStringLiteral("available")).toBool());
+
+    // A send has nothing of ours on disk to open.
+    record.id = QStringLiteral("sent");
+    record.direction = QStringLiteral("send");
+    record.destination.clear();
+    history.append(record);
+    QVERIFY(!history.filesAt(0).at(0).toMap().value(QStringLiteral("available")).toBool());
+
+    history.clear();
 }
 
 QTEST_MAIN(TestModels)

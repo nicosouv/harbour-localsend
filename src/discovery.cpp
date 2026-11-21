@@ -6,6 +6,7 @@
 #include <QNetworkInterface>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QTcpSocket>
 #include <QTimer>
 #include <QUdpSocket>
 #include <QUrl>
@@ -27,7 +28,9 @@ const int AnnounceIntervalMs = 20 * 1000;
 const int DeviceMaxAgeSeconds = 70;
 
 // The subnet sweep, sized for a phone: enough sockets in flight to finish a
-// /24 in well under a minute, few enough not to swamp the Wi-Fi chip.
+// /24 in well under a minute, few enough not to swamp the Wi-Fi chip. The
+// window is also the most descriptors a sweep ever holds, which matters
+// because the process gets 1024 and the graphics driver needs some of them.
 const int ScanWindow = 24;
 const int ScanTimeoutMs = 1500;
 const int RegisterTimeoutMs = 3000;
@@ -53,8 +56,9 @@ Discovery::Discovery(AppSettings *settings, DeviceModel *devices,
     , m_running(false)
     , m_scanTotal(0)
     , m_scanDone(0)
-    , m_scanInFlight(0)
+    , m_scanProbes(0)
     , m_scanning(false)
+    , m_scanPumping(false)
     , m_manualPending(0)
     , m_manualFound(false)
 {
@@ -578,14 +582,45 @@ DeviceInfo Discovery::registerPeer(const QJsonObject &payload, const QString &ad
 
 // --- subnet sweep --------------------------------------------------------
 
+QStringList Discovery::lanAddresses() const
+{
+    // Only interfaces that broadcast: Wi-Fi, Ethernet, the hotspot bridge.
+    // Mobile data is point-to-point, or on MediaTek modems a NOARP device
+    // with no broadcast flag, and the /24 around its address belongs to the
+    // operator: other subscribers or nothing at all. Sweeping it never found
+    // a LocalSend device, and its unanswered connections are what ran the
+    // app out of descriptors.
+    QStringList result;
+    const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
+
+    for (int i = 0; i < interfaces.count(); ++i) {
+        const QNetworkInterface &interface = interfaces.at(i);
+        const QNetworkInterface::InterfaceFlags flags = interface.flags();
+
+        if (!flags.testFlag(QNetworkInterface::IsUp)
+                || !flags.testFlag(QNetworkInterface::IsRunning)
+                || !flags.testFlag(QNetworkInterface::CanBroadcast)
+                || flags.testFlag(QNetworkInterface::IsLoopBack)
+                || flags.testFlag(QNetworkInterface::IsPointToPoint)) {
+            continue;
+        }
+
+        const QList<QNetworkAddressEntry> entries = interface.addressEntries();
+        for (int e = 0; e < entries.count(); ++e) {
+            const QHostAddress address = entries.at(e).ip();
+            if (address.protocol() == QAbstractSocket::IPv4Protocol)
+                result.append(address.toString());
+        }
+    }
+    return result;
+}
+
 void Discovery::scanSubnet()
 {
     if (m_scanning)
         return;
 
-    m_scanQueue.clear();
-
-    const QStringList mine = localAddresses();
+    const QStringList mine = lanAddresses();
     QStringList prefixes;
     for (int i = 0; i < mine.count(); ++i) {
         const int lastDot = mine.at(i).lastIndexOf(QLatin1Char('.'));
@@ -599,27 +634,27 @@ void Discovery::scanSubnet()
     // A /24 around each of our own addresses. Wider prefixes exist, but a /16
     // sweep is 65k requests, which is not a feature: it is a denial of
     // service against the person's own router.
-    //
-    // Each address is tried on both transports. There is no way to tell from
-    // outside whether a device is running encrypted or not, and the whole
-    // point of this sweep is the network where nothing announced itself, so
-    // there is nothing to read the answer off.
+    QStringList hosts;
     for (int p = 0; p < prefixes.count(); ++p) {
         for (int host = 1; host <= 254; ++host) {
             const QString address = prefixes.at(p) + QString::number(host);
-            if (mine.contains(address))
-                continue;
-            m_scanQueue.append(QStringLiteral("https://") + address);
-            m_scanQueue.append(QStringLiteral("http://") + address);
+            if (!mine.contains(address))
+                hosts.append(address);
         }
     }
 
-    if (m_scanQueue.isEmpty())
+    scanHosts(hosts);
+}
+
+void Discovery::scanHosts(const QStringList &hosts)
+{
+    if (m_scanning || hosts.isEmpty())
         return;
 
-    m_scanTotal = m_scanQueue.count();
+    m_scanQueue = hosts;
+    m_scanTotal = hosts.count();
     m_scanDone = 0;
-    m_scanInFlight = 0;
+    m_scanProbes = 0;
     m_scanning = true;
     emit scanningChanged();
 
@@ -628,18 +663,76 @@ void Discovery::scanSubnet()
 
 void Discovery::pumpScanQueue()
 {
-    while (m_scanning && m_scanInFlight < ScanWindow && !m_scanQueue.isEmpty()) {
-        const QUrl target(m_scanQueue.takeFirst());
+    // A refused connection can be reported from inside connectToHost(), and
+    // settling it calls back in here. The outer loop fills the slot it frees.
+    if (m_scanPumping)
+        return;
+    m_scanPumping = true;
 
-        QNetworkReply *reply = probe(target.host(), m_settings->port(),
-                                     target.scheme());
-        connect(reply, &QNetworkReply::finished, this, &Discovery::onScanReplyFinished);
-        QTimer::singleShot(ScanTimeoutMs, reply, SLOT(abort()));
-        ++m_scanInFlight;
+    // A bare TCP connection first, not a request. QNetworkAccessManager keeps
+    // the socket of a request that failed or was aborted open long after the
+    // request is gone: one /24 left 500 descriptors behind, and Wi-Fi plus
+    // mobile data took the app past its limit of 1024 in a minute. A socket
+    // of our own is closed the moment it settles, and only an address that
+    // answered gets a real request.
+    while (m_scanning && m_scanChecks.count() < ScanWindow && !m_scanQueue.isEmpty()) {
+        const QString host = m_scanQueue.takeFirst();
+
+        QTcpSocket *socket = new QTcpSocket(this);
+        m_scanChecks.insert(socket);
+
+        connect(socket, &QTcpSocket::connected, this, [this, socket, host]() {
+            finishCheck(socket, host, true);
+        });
+        connect(socket, static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
+                            &QAbstractSocket::error),
+                this, [this, socket, host](QAbstractSocket::SocketError) {
+            finishCheck(socket, host, false);
+        });
+        QTimer::singleShot(ScanTimeoutMs, socket, [this, socket, host]() {
+            finishCheck(socket, host, false);
+        });
+
+        socket->connectToHost(host, quint16(m_settings->port()));
     }
 
-    if (m_scanning && m_scanQueue.isEmpty() && m_scanInFlight == 0)
+    m_scanPumping = false;
+
+    if (m_scanning && m_scanQueue.isEmpty() && m_scanChecks.isEmpty()
+            && m_scanProbes == 0) {
         finishScan();
+    }
+}
+
+void Discovery::finishCheck(QTcpSocket *socket, const QString &host, bool open)
+{
+    // Already settled: a timeout racing a late answer, or a cancelled sweep.
+    if (!m_scanChecks.remove(socket))
+        return;
+
+    disconnect(socket, 0, this, 0);
+    // abort(), so the descriptor goes back now rather than when the object
+    // is finally deleted.
+    socket->abort();
+    socket->deleteLater();
+    ++m_scanDone;
+
+    if (open) {
+        // Something listens on the LocalSend port. Both transports, because
+        // nothing seen from outside says which one it serves.
+        const QString schemes[] = { QStringLiteral("https"), QStringLiteral("http") };
+        for (int i = 0; i < 2; ++i) {
+            QNetworkReply *reply = probe(host, m_settings->port(), schemes[i]);
+            connect(reply, &QNetworkReply::finished, this, &Discovery::onScanReplyFinished);
+            QTimer::singleShot(RegisterTimeoutMs, reply, SLOT(abort()));
+            ++m_scanProbes;
+        }
+    }
+
+    // The percentage moves a lot; the UI reads it from a property that only
+    // changes on this signal, so emitting per address is exactly right.
+    emit scanningChanged();
+    pumpScanQueue();
 }
 
 void Discovery::onScanReplyFinished()
@@ -649,14 +742,8 @@ void Discovery::onScanReplyFinished()
         return;
     reply->deleteLater();
 
-    --m_scanInFlight;
-    ++m_scanDone;
-
+    --m_scanProbes;
     acceptRegisterReply(reply, 0);
-
-    // The percentage moves a lot; the UI reads it from a property that only
-    // changes on this signal, so emitting per reply is exactly right.
-    emit scanningChanged();
     pumpScanQueue();
 }
 
@@ -665,8 +752,18 @@ void Discovery::cancelScan()
     if (!m_scanning)
         return;
     m_scanQueue.clear();
-    // Replies already in flight run to their timeout and settle the counter.
-    if (m_scanInFlight == 0)
+
+    // The checks are ours, so they stop now instead of at their timeout.
+    const QList<QTcpSocket *> checks = m_scanChecks.values();
+    m_scanChecks.clear();
+    for (int i = 0; i < checks.count(); ++i) {
+        disconnect(checks.at(i), 0, this, 0);
+        checks.at(i)->abort();
+        checks.at(i)->deleteLater();
+    }
+
+    // Probes already in flight run to their timeout and settle the counter.
+    if (m_scanProbes == 0)
         finishScan();
 }
 

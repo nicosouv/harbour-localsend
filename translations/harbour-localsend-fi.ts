@@ -235,6 +235,21 @@
     </message>
 </context>
 <context>
+    <name>HistoryFilesPage</name>
+    <message>
+        <source>From %1</source>
+        <translation>Lähettäjä %1</translation>
+    </message>
+    <message>
+        <source>Moved or deleted</source>
+        <translation>Siirretty tai poistettu</translation>
+    </message>
+    <message>
+        <source>in %1</source>
+        <translation>kansiossa %1</translation>
+    </message>
+</context>
+<context>
     <name>HistoryPage</name>
     <message numerus="yes">
         <source>%n transfer(s)</source>
@@ -266,10 +281,6 @@
     <message>
         <source>Nothing yet</source>
         <translation>Ei vielä mitään</translation>
-    </message>
-    <message>
-        <source>Open folder</source>
-        <translation>Avaa kansio</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -916,10 +927,6 @@
     <message>
         <source>Files</source>
         <translation>Tiedostot</translation>
-    </message>
-    <message>
-        <source>Open</source>
-        <translation>Avaa</translation>
     </message>
     <message>
         <source>Receiving</source>

@@ -763,6 +763,7 @@ void ReceiveService::finishSession(const QString &status)
         for (int row = 0; row < total; ++row) {
             if (m_transfer->entry(row).status == TransferModel::FileDone) {
                 record.fileNames.append(m_transfer->entry(row).fileName);
+                record.filePaths.append(m_transfer->entry(row).localPath);
                 record.totalBytes += m_transfer->entry(row).size;
             }
         }

@@ -15,6 +15,9 @@ ListItem {
     property real fileProgress: 0
     property string fileStatus: "waiting"
     property string fileError: ""
+    // Set by the page when a tap opens the file. Only such a row lights up
+    // under a finger; the others have nothing to offer.
+    property bool openable: false
 
     readonly property bool failed: fileStatus === "failed"
     readonly property bool skipped: fileStatus === "skipped"
@@ -26,7 +29,7 @@ ListItem {
                 : (running ? Theme.highlightColor : Theme.secondaryColor))
 
     contentHeight: Theme.itemSizeSmall
-    highlighted: false
+    highlighted: openable && down
 
     Rectangle {
         id: marker

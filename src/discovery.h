@@ -15,6 +15,7 @@ class AppSettings;
 class DeviceModel;
 class QNetworkAccessManager;
 class QNetworkReply;
+class QTcpSocket;
 class QTimer;
 class QUdpSocket;
 
@@ -57,10 +58,15 @@ public:
     // Announce again right now, and clear out anything that has gone quiet.
     Q_INVOKABLE void refresh();
 
-    // Registers with every address in the local /24. The escape hatch for
-    // networks that swallow multicast.
+    // Registers with every address of the local /24s that has the LocalSend
+    // port open. The escape hatch for networks that swallow multicast.
     Q_INVOKABLE void scanSubnet();
     Q_INVOKABLE void cancelScan();
+
+    // The sweep itself, over an explicit list of IPv4 addresses. scanSubnet()
+    // feeds it the /24 around each of our LAN addresses; the tests feed it
+    // the loopback, where every connection is refused at full speed.
+    void scanHosts(const QStringList &hosts);
 
     // Adds a device by address, for the case neither of the above can reach:
     // a different subnet, a VPN, a guest network with client isolation. The
@@ -105,8 +111,13 @@ private:
     void postRegister(const DeviceInfo &peer);
     void handlePayload(const QJsonObject &payload, const QString &address);
     void pumpScanQueue();
+    // Settles one connection check, and probes the address if it answered.
+    void finishCheck(QTcpSocket *socket, const QString &host, bool open);
     void finishScan();
     QStringList localAddresses() const;
+    // Our addresses on interfaces that can broadcast: the ones whose /24 is
+    // a network worth sweeping.
+    QStringList lanAddresses() const;
 
     // Posts /register to one endpoint on one transport. The reply is left
     // unconnected for the caller to wire to whichever handler it needs.
@@ -134,10 +145,14 @@ private:
     QElapsedTimer m_responseClock;
 
     QStringList m_scanQueue;
+    // Connection checks in flight. Ours, so they can be closed the moment
+    // they settle instead of whenever Qt gets round to it.
+    QSet<QTcpSocket *> m_scanChecks;
     int m_scanTotal;
     int m_scanDone;
-    int m_scanInFlight;
+    int m_scanProbes;
     bool m_scanning;
+    bool m_scanPumping;
 
     // One manual lookup at a time, over both transports, so two replies are
     // outstanding and the first success wins.

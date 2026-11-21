@@ -235,6 +235,21 @@
     </message>
 </context>
 <context>
+    <name>HistoryFilesPage</name>
+    <message>
+        <source>From %1</source>
+        <translation>De %1</translation>
+    </message>
+    <message>
+        <source>Moved or deleted</source>
+        <translation>Movido o eliminado</translation>
+    </message>
+    <message>
+        <source>in %1</source>
+        <translation>en %1</translation>
+    </message>
+</context>
+<context>
     <name>HistoryPage</name>
     <message numerus="yes">
         <source>%n transfer(s)</source>
@@ -266,10 +281,6 @@
     <message>
         <source>Nothing yet</source>
         <translation>Nada todavía</translation>
-    </message>
-    <message>
-        <source>Open folder</source>
-        <translation>Abrir la carpeta</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -916,10 +927,6 @@
     <message>
         <source>Files</source>
         <translation>Archivos</translation>
-    </message>
-    <message>
-        <source>Open</source>
-        <translation>Abrir</translation>
     </message>
     <message>
         <source>Receiving</source>
